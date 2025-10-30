@@ -1,0 +1,26 @@
+# Client environment variables
+client/node_modules/
+client/dist/
+
+
+# Server environment variables
+server/node_modules/
+server/.env
+
+
+# Services environment variables
+*.user
+bin/
+obj/
+services/.vs/
+systemSettings.json
+
+# Lock files
+package-lock.json
+
+
+# Cache and temporary files
+*.cache
+*.pdb
+*.tmp
+*.log
