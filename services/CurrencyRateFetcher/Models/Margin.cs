@@ -10,5 +10,8 @@ public class Margin
     public DateTime StartDate { get; set; }
     public DateTime? EndDate { get; set; }
 
+    public int UserId { get; set; }
+    public virtual User User { get; set; } = null!;
+
     public ICollection<CurrencyRate> CurrencyRates { get; set; } = new List<CurrencyRate>();
 }

@@ -16,7 +16,6 @@ public partial class MyDbContext : DbContext
     public virtual DbSet<Currency> Currencies { get; set; }
     public virtual DbSet<CurrencyRate> CurrencyRates { get; set; }
     public virtual DbSet<Margin> Margins { get; set; }
-    public virtual DbSet<MarginHistory> MarginHistories { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -54,25 +53,15 @@ public partial class MyDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
-
-        modelBuilder.Entity<MarginHistory>(entity =>
+        // Configuration for Margin, added connection to User
+        modelBuilder.Entity<Margin>(entity =>
         {
             entity.HasKey(e => e.Id);
 
             entity.HasOne(e => e.User)
-                .WithMany(u => u.MarginHistories)
+                .WithMany(u => u.Margins)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.OldMargin)
-                .WithMany()
-                .HasForeignKey(e => e.OldMarginId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            entity.HasOne(e => e.NewMargin)
-                .WithMany()
-                .HasForeignKey(e => e.NewMarginId)
-                .OnDelete(DeleteBehavior.SetNull);
         });
 
         OnModelCreatingPartial(modelBuilder);

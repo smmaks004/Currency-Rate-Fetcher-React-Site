@@ -35,7 +35,8 @@
 /* controls-specific headline (bigger and centered above selects) */
 .controls .controls-head {
   display: block;
-  margin: 0 auto 0.8rem auto;
+  /* margin: 0 auto 0.8rem auto; */
+  margin: 0;
   text-align: center;
   font-size: 1.05rem;
   padding: 0.5rem 0.8rem 0.5rem 0.8rem;
@@ -135,7 +136,10 @@
   border-color: rgba(108,140,255,0.2);
 }
 
-.main-card.wide { max-width: 1200px; padding: 2.5rem; }
+.main-card.wide { max-width: 1400px; padding: 2.5rem; width: calc(100% - 3rem); }
+
+/* ensure chart canvas uses available width */
+.chart-area canvas { width: 100% !important; }
 
 .chart-legend { display:flex; justify-content:space-between; color:#9fb7ff; font-size:0.9rem; margin-top:0.6rem }
 

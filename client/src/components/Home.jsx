@@ -5,6 +5,7 @@ import './Home.css';
 import { Chart as ChartJS, LineElement, PointElement, LinearScale, TimeScale, Tooltip, Legend, Title } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import 'chartjs-adapter-date-fns';
+import { useAuth } from './AuthContext';
 
 ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Legend, Title);
 
@@ -18,8 +19,8 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
     const [currencies, setCurrencies] = useState([]);
     const [fromId, setFromId] = useState(null);
     const [toId, setToId] = useState(null);
-    const [mode, setMode] = useState('mix'); // 'buy' | 'sell' | 'mix' | 'mid'
-    const [chart, setChart] = useState({ labels: [], midValues: [], buyValues: [], sellValues: [] });
+    const [mode, setMode] = useState('mix'); // 'buy' | 'sell' | 'mix' *****| 'mid'
+    const [chart, setChart] = useState({ labels: [], /*midValues: [],*/ buyValues: [], sellValues: [] });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [debugLogs, setDebugLogs] = useState([]);
@@ -59,9 +60,9 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
             setTimeout(() => load(attempt + 1), retryDelay);
           } else {
             // after retries, leave currencies empty but do not show a blocking error
-              setError('Failed to load currency list (server unavailable)');
-              console.warn('Currencies fetch exhausted retries');
-              logDebug('Currencies fetch exhausted retries');
+            setError('Failed to load currency list (server unavailable)');
+            console.warn('Currencies fetch exhausted retries');
+            logDebug('Currencies fetch exhausted retries');
           }
         }
       };
@@ -82,8 +83,18 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
         for (const r of rows) {
           const dt = parseDate(r.Date);
           if (!dt) continue;
-          const key = dt.toISOString().slice(0, 10);
-          map.set(key, { rate: Number(r.ExchangeRate), margin: r.MarginValue != null ? Number(r.MarginValue) : 0, date: dt });
+
+          
+          // Had a problems with correct date handling in charts
+          // Use local date (year-month-day) as key to avoid UTC timezone shifts that
+          const y = dt.getFullYear();
+          const m = String(dt.getMonth() + 1).padStart(2, '0');
+          const d = String(dt.getDate()).padStart(2, '0');
+          const key = `${y}-${m}-${d}`;
+          
+          // store a Date at local midnight to render consistently in chart (no TZ shift)
+          const localMidnight = new Date(y, dt.getMonth(), dt.getDate());
+          map.set(key, { rate: Number(r.ExchangeRate), margin: r.MarginValue != null ? Number(r.MarginValue) : 0, date: localMidnight });
         }
         return map;
       } catch (err) {
@@ -113,20 +124,16 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
 
   // debug info
   console.debug('buildChart: mapFrom size', mapFrom.size, 'mapTo size', mapTo.size, 'fromId', fId, 'toId', tId);
-
-        // If one side has no data but the other side does, synthesize rate=1 entries
-        // for the empty side. This covers the case where the DB only stores EUR->X
-        // and there are no rows for EUR itself.
         if (mapFrom.size === 0 && mapTo.size > 0) {
-          console.debug('synthesizing mapFrom (EUR) from mapTo keys, first keys:', Array.from(mapTo.keys()).slice(0,5));
+          //console.debug('Synthesizing mapFrom (EUR) from mapTo keys, first keys:', Array.from(mapTo.keys()).slice(0,5));
           mapTo.forEach((v, k) => mapFrom.set(k, { rate: 1, margin: 0, date: v.date }));
         }
         if (mapTo.size === 0 && mapFrom.size > 0) {
-          console.debug('synthesizing mapTo (EUR) from mapFrom keys, first keys:', Array.from(mapFrom.keys()).slice(0,5));
+          //console.debug('Synthesizing mapTo (EUR) from mapFrom keys, first keys:', Array.from(mapFrom.keys()).slice(0,5));
           mapFrom.forEach((v, k) => mapTo.set(k, { rate: 1, margin: 0, date: v.date }));
         }
 
-        // intersection of dates (daily)
+        // Intersection of dates (daily)
         let dates = Array.from(mapTo.keys()).filter((k) => mapFrom.has(k));
 
         // If intersection is empty but one side is EUR, fall back to using the other's dates
@@ -135,14 +142,14 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
           dates = Array.from(source.keys());
         }
         if (dates.length === 0) {
-          setChart({ labels: [], midValues: [], buyValues: [], sellValues: [] });
+          setChart({ labels: [], /*midValues: [], */buyValues: [], sellValues: [] });
           setLoading(false);
           return;
         }
         dates.sort();
 
         const labels = [];
-        const midValues = [];
+        // const midValues = [];
         const buyValues = [];
         const sellValues = [];
 
@@ -156,23 +163,68 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
           const marginTo = a.margin || 0;
           const marginFrom = b.margin || 0;
 
-          const mid = baseTo / baseFrom;
+          // console.error(key);
+          // console.error(baseTo);
+          // console.error(baseFrom);
+          // console.error(marginTo);
+          // console.error(marginFrom);
 
+          
+          /*
+          How the rate calculation works (DB stores rates as EUR → X):
+
+          The database only stores daily rates of the form EUR -> X.
+          To get a rate from currency A (from) to currency B (to):
+            - ate = (EUR -> to) / (EUR -> from)
+
+          Examples:
+            - EUR -> CNY  = (EUR->CNY) / 1
+            - USD -> CNY  = (EUR->CNY) / (EUR->USD)
+            - USD -> EUR  = 1 / (EUR->USD)
+
+          Margin handling:
+          - Margins are stored as fractions (e.g. 0.02 == 2%).
+          - We split the margin evenly between buy and sell sides:
+              - sell-side (bank sells currency): base * (1 + margin/2)
+              - buy-side  (bank buys currency):  base * (1 - margin/2)
+
+          Final formulas used here:
+            buy  = (EUR->to with sell adjustment) / (EUR->from with buy adjustment)
+            sell = (EUR->to with buy adjustment)  / (EUR->from with sell adjustment)
+
+          The code below applies these rules per-day using the available EUR->X records.
+          */
+          
+          
+
+          // Buy: customer buys 'to' — use eurTo_sell / eurFrom_buy
           const eurTo_sell = baseTo * (1 + (marginTo || 0) / 2);
           const eurFrom_buy = baseFrom * (1 - (marginFrom || 0) / 2);
           const buy = eurTo_sell / eurFrom_buy;
-
+          // Sell: customer sells 'to' — use eurTo_buy / eurFrom_sell
           const eurTo_buy = baseTo * (1 - (marginTo || 0) / 2);
           const eurFrom_sell = baseFrom * (1 + (marginFrom || 0) / 2);
           const sell = eurTo_buy / eurFrom_sell;
 
-          labels.push(new Date(key).toISOString());
-          midValues.push(Number(mid));
+          
+
+          // console.log("mid:"+mid);
+          // console.log("buy:"+buy);
+          // console.log("sell:"+sell);
+
+          // store Date objects (not strings) so chartjs date adapter handles them
+          // prefer the original parsed/local-midnight date to avoid TZ shifts
+          // labels.push(a.date || b.date || new Date(key));
+          labels.push(new Date(key));
+          // midValues.push(Number(mid));
           buyValues.push(Number(buy));
           sellValues.push(Number(sell));
+
+          // console.log('---');
+          // console.log('');
         }
 
-        setChart({ labels, midValues, buyValues, sellValues });
+        setChart({ labels, /*midValues,*/ buyValues, sellValues });
       } catch (err) {
         console.error(err);
   setError('Error loading data');
@@ -201,9 +253,9 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
       } else if (mode === 'mix') {
         datasets.push({ label: 'Buy', data: chart.buyValues.map((v, i) => ({ x: chart.labels[i], y: v })), borderColor: '#28c76f', backgroundColor: 'rgba(40,199,111,0.08)', tension: 0.12, pointRadius: 1 });
         datasets.push({ label: 'Sell', data: chart.sellValues.map((v, i) => ({ x: chart.labels[i], y: v })), borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.08)', tension: 0.12, pointRadius: 1 });
-      } else if (mode === 'mid') {
-        datasets.push({ label: 'Mid', data: chart.midValues.map((v, i) => ({ x: chart.labels[i], y: v })), borderColor: '#6c8cff', backgroundColor: 'rgba(108,140,255,0.12)', tension: 0.12, pointRadius: 2 });
-      }
+      } //else if (mode === 'mid') {
+      //   datasets.push({ label: 'Mid', data: chart.midValues.map((v, i) => ({ x: chart.labels[i], y: v })), borderColor: '#6c8cff', backgroundColor: 'rgba(108,140,255,0.12)', tension: 0.12, pointRadius: 2 });
+      // }
       return { labels: chart.labels, datasets };
     }, [chart, mode]);
 
@@ -215,13 +267,32 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
         tooltip: {
           mode: 'index',
           intersect: false,
-          callbacks: {
-            title: (items) => {
-              const d = new Date(items[0].label || items[0].parsed?.x);
-              return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-            },
-            label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw.y ?? ctx.raw).toFixed(6)}`,
+        callbacks: {
+
+          // Make the title callback resilient to different shapes of the x value
+          title: (items) => {
+            if (!items || items.length === 0) return '';
+            const it = items[0];
+            
+            // Possible places where x can appear depending on data format / chartjs version
+            const rawX = it?.parsed?.x ?? it?.raw?.x ?? it?.element?.$context?.parsed?.x ?? it?.label ?? it?.parsed;
+            let d = null;
+            if (rawX instanceof Date) d = rawX;
+            else if (typeof rawX === 'number' || typeof rawX === 'string') d = new Date(rawX);
+            
+            
+            // fallback, try to read dataset value's x
+            else if (it?.dataset && it.dataset.data && it.dataset.data[it.index]) {
+              const maybe = it.dataset.data[it.index];
+              const cand = maybe?.x ?? maybe;
+              if (cand instanceof Date) d = cand;
+              else if (typeof cand === 'number' || typeof cand === 'string') d = new Date(cand);
+            }
+            if (!d || Number.isNaN(d.getTime())) return '';
+            return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
           },
+          label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw.y ?? ctx.raw).toFixed(6)}`,
+        },
         },
       },
       scales: {
@@ -232,8 +303,17 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
     }), []);
 
     const [userMenuOpen, setUserMenuOpen] = useState(false);
-    // No auth: header only has Login button that navigates to /login
-    const handleLogout = () => {
+    const { user, logout } = useAuth();
+
+
+    // Auth state is provided by AuthContext (no local fetch needed here)
+
+    const handleLogout = async () => {
+      try {
+        await logout();
+      } catch (e) {
+        console.warn('Logout failed', e);
+      }
       setUserMenuOpen(false);
     };
 
@@ -242,9 +322,22 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
         <header className="topbar">
           <div className="brand">Exchange Explorer</div>
           <div className="top-actions">
-            <button className="btn-primary" onClick={() => navigate('/login')}>
-              Login
-            </button>
+            {/* If we have a logged-in user or not */}
+            {user ? (
+              <div className="user-block">
+                <span className="user-label"><strong>{`${user.FirstName || ''} ${user.LastName || ''}`.trim()}</strong></span>
+                <button className="btn-link" onClick={() => setUserMenuOpen((s) => !s)} aria-expanded={userMenuOpen}>▾</button>
+                {userMenuOpen && (
+                  <div className="user-menu">
+                    <button className="btn-plain" onClick={handleLogout}>Logout</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button className="btn-primary" onClick={() => navigate('/login')}>
+                Login
+              </button>
+            )}
           </div>
         </header>
 
@@ -271,7 +364,7 @@ ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Leg
               </label>
 
               <div className="mode-control">
-                <label className={`mode-btn ${mode === 'mid' ? 'active' : ''}`} onClick={() => setMode('mid')}>Mid</label>
+                {/* <label className={`mode-btn ${mode === 'mid' ? 'active' : ''}`} onClick={() => setMode('mid')}>Mid</label> */}
                 <label className={`mode-btn ${mode === 'buy' ? 'active' : ''}`} onClick={() => setMode('buy')}>Buy</label>
                 <label className={`mode-btn ${mode === 'sell' ? 'active' : ''}`} onClick={() => setMode('sell')}>Sell</label>
                 <label className={`mode-btn ${mode === 'mix' ? 'active' : ''}`} onClick={() => setMode('mix')}>Mix</label>

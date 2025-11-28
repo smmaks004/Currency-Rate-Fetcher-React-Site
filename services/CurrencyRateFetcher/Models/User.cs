@@ -14,5 +14,10 @@ public partial class User
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? LastLogin { get; set; }
 
-    public virtual ICollection<MarginHistory> MarginHistories { get; set; } = new List<MarginHistory>();
+    // Soft Delete (BIT NOT NULL DEFAULT 0)
+    public bool IsDeleted { get; set; } = false;
+
+    // 1:N with Margins
+    
+    public virtual ICollection<Margin> Margins { get; set; } = new List<Margin>();
 }

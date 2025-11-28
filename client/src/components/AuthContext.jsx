@@ -1,0 +1,87 @@
+/*
+Authentication & Performance Layer
+This Context centralizes the user's login status and role data for the entire app. 
+It performs a single secure check on load, caching the user object in memory. 
+This eliminates repeated network calls during navigation, 
+instantly validating protected routes and making the UI much faster. 
+It also acts as the secure bridge to read the user's identity from the server's HttpOnly cookie.
+*/
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+const AuthContext = createContext(null);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Run the auth check only once when the app first loads (on full page refresh)
+    // This avoids repeated network calls
+    const checkUser = async () => {
+      try {
+        const res = await fetch('http://localhost:4000/api/auth/me', { credentials: 'include' });
+        if (res.ok) {
+          const userData = await res.json();
+          setUser(userData);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('Auth check failed', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkUser();
+  }, []);
+
+  // Login: accept server response and optionally refresh authoritative user
+  // by calling /api/auth/me (reads httpOnly cookie)
+  // This helps to avoid racey or duplicated fetches from multiple components
+  const login = async (userData, { refresh = true } = {}) => {
+    setUser(userData); // Optimistic set from login response (because it is first)
+
+    if (refresh) {
+      try {
+        const res = await fetch('http://localhost:4000/api/auth/me', { credentials: 'include' });
+        if (res.ok) {
+          const u = await res.json();
+          setUser(u);
+        }
+      } catch (err) {
+        console.warn('AuthContext: refresh after login failed', err);
+      }
+    }
+  };
+
+  // Helper to explicitly refresh user from server
+  const refreshUser = async () => {
+    try {
+      const res = await fetch('http://localhost:4000/api/auth/me', { credentials: 'include' });
+      if (res.ok) {
+        const u = await res.json();
+        setUser(u);
+        return u;
+      }
+    } catch (err) {
+      console.warn('AuthContext: refreshUser failed', err);
+    }
+    return null;
+  };
+
+  const logout = async () => {
+    try {
+        await fetch('http://localhost:4000/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch(e) { }
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);

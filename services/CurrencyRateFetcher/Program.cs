@@ -9,8 +9,9 @@ using static CurrencyRateFetcher.SettingsHelper;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 
-public static class LoggerExtensions // Extension method for Serilog
+public static class LoggerExtensions
 {
     public static ILogger Here(this ILogger logger,
         [CallerMemberName] string memberName = "",
@@ -28,7 +29,7 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        // Logging configuration
+        // 1. Configure logger
         Log.Logger = new LoggerConfiguration()
             .WriteTo.File(
                 path: "logs/log-.txt",
@@ -39,70 +40,95 @@ class Program
 
         Log.Information("Program start");
 
-        // Load DB config from SettingsHelper
-        var databaseConfig = SettingsHelper.SettingsLoading();
-
-
-        // Frankfurter API: get all rates for today (base EUR)
-        //string apiUrl = $"https://api.frankfurter.dev/{today:yyyy-MM-dd}";
-
-
-
-
-
-        using var client = new HttpClient();
-        using var context = new MyDbContext(databaseConfig);
-
-
-        // Save to DB
-
-        //string apiUrl = $"https://api.frankfurter.dev/v1/latest?base=EUR";
-        string apiUrl = $"https://api.frankfurter.dev/v1/2024-01-02..2025-10-21?base=EUR";
-
-
-        HttpResponseMessage response;
         try
         {
-            response = await client.GetAsync(apiUrl);
-            response.EnsureSuccessStatusCode();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to fetch data from Frankfurter API");
-            return;
-        }
+            // 2. Load configuration
+            var databaseConfig = SettingsHelper.SettingsLoading();
 
-        var responseBody = await response.Content.ReadAsStringAsync();
+            using var client = new HttpClient();
+            using var context = new MyDbContext(databaseConfig);
 
-        using var doc = JsonDocument.Parse(responseBody);
-        var root = doc.RootElement;
+            // ============================================================
+            // Logic to choose which Frankfurter API endpoint to call
+            // ============================================================
 
-        // Detect if it's a range response (rates is a dictionary of dates)
-        if (root.TryGetProperty("rates", out var ratesElement) && ratesElement.ValueKind == JsonValueKind.Object)
-        {
-            // If "date" property exists, it's a single date response
-            if (root.TryGetProperty("date", out var dateElement))
+            DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+
+            // Find the most recent date currently stored in the DB
+            var lastRate = context.CurrencyRates
+                .OrderByDescending(cr => cr.Date)
+                .FirstOrDefault();
+
+            string apiUrl = "";
+            bool isRangeRequest = false;
+
+            if (lastRate == null)
             {
-                // Single date response
-                var frankfurterData = JsonSerializer.Deserialize<FrankfurterResponse>(responseBody);
+                // SCENARIO 0: database is empty — fetch a full historical range
+                DateOnly defaultStart = new DateOnly(2024, 1, 1);
+                Log.Information("Database is empty. Fetching range from default date.");
 
-                if (frankfurterData?.Rates == null)
-                {
-                    Log.Warning("Empty or invalid Frankfurter API response");
-                    return;
-                }
-
-                if (!DateOnly.TryParse(frankfurterData.Date, out var rateDate))
-                {
-                    Log.Warning($"Invalid date format: {frankfurterData.Date}");
-                    return;
-                }
-
-                await SaveRatesForDate(context, rateDate, frankfurterData.Rates);
+                apiUrl = $"https://api.frankfurter.dev/v1/{defaultStart:yyyy-MM-dd}..{today:yyyy-MM-dd}?base=EUR";
+                isRangeRequest = true;
             }
             else
             {
-                // Range response
+                // FIXED: convert DB DateTime to DateOnly for proper date comparisons
+                DateOnly lastDbDate = DateOnly.FromDateTime(lastRate.Date);
+                Log.Information($"Last date in DB: {lastDbDate}. Today: {today}");
+
+                    if (lastDbDate >= today)
+                {
+                        // SCENARIO 1: database is up to date
+                    Log.Information("Database is up to date (LastDate >= Today). Nothing to do.");
+                    return; // exit program
+                }
+                else if (lastDbDate == today.AddDays(-1))
+                {
+                    // SCENARIO 2: gap is exactly one day — request 'latest'
+                    Log.Information("Gap is exactly 1 day. Using 'latest' endpoint.");
+
+                    apiUrl = "https://api.frankfurter.dev/v1/latest?base=EUR";
+                    isRangeRequest = false;
+                }
+                else
+                {
+                    // SCENARIO 3: gap is greater than one day — fetch a date range
+                    DateOnly startDate = lastDbDate.AddDays(1);
+                    Log.Information($"Gap is > 1 day. Fetching range: {startDate} .. {today}");
+
+                    apiUrl = $"https://api.frankfurter.dev/v1/{startDate:yyyy-MM-dd}..{today:yyyy-MM-dd}?base=EUR";
+                    isRangeRequest = true;
+                }
+            }
+
+            // ============================================================
+            // Request and response processing
+            // ============================================================
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await client.GetAsync(apiUrl);
+                response.EnsureSuccessStatusCode();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to fetch data from Frankfurter API. URL: {apiUrl}");
+                return;
+            }
+
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            if (string.IsNullOrWhiteSpace(responseBody))
+            {
+                Log.Warning("Received empty response body.");
+                return;
+            }
+
+            if (isRangeRequest)
+            {
+                // Treat response as a range (daily rates for multiple dates)
                 var frankfurterRangeData = JsonSerializer.Deserialize<FrankfurterRangeResponse>(responseBody);
 
                 if (frankfurterRangeData?.Rates == null)
@@ -115,68 +141,108 @@ class Program
                 {
                     if (!DateOnly.TryParse(dateRates.Key, out var rateDate))
                     {
-                        Log.Warning($"Invalid date format: {dateRates.Key}");
+                        Log.Warning($"Invalid date format in range key: {dateRates.Key}");
                         continue;
                     }
-
                     await SaveRatesForDate(context, rateDate, dateRates.Value);
                 }
             }
-        }
-        else
-        {
-            Log.Warning("Frankfurter API response format not recognized.");
-        }
+            else
+            {
+                // Treat response as latest (single-date) payload
+                var frankfurterData = JsonSerializer.Deserialize<FrankfurterResponse>(responseBody);
 
-        Log.Information("Program completed successfully");
-        Log.CloseAndFlush();
+                if (frankfurterData?.Rates == null)
+                {
+                    Log.Warning("Empty or invalid Frankfurter API response (Latest)");
+                    return;
+                }
+
+                if (!DateOnly.TryParse(frankfurterData.Date, out var rateDate))
+                {
+                    Log.Warning($"Invalid date format in response: {frankfurterData.Date}");
+                    return;
+                }
+
+                // FIXED: duplicate check for 'latest' using proper DateOnly comparison
+                if (lastRate != null)
+                {
+                    DateOnly lastRateDateOnly = DateOnly.FromDateTime(lastRate.Date);
+
+                    if (rateDate <= lastRateDateOnly)
+                    {
+                        Log.Information($"API 'latest' returned date {rateDate}, but we already have {lastRateDateOnly}. Skipping save.");
+                        return;
+                    }
+                }
+
+                await SaveRatesForDate(context, rateDate, frankfurterData.Rates);
+            }
+
+            Log.Information("Program completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Application terminated unexpectedly");
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
     }
 
-    // Helper method to save rates for a specific date
+    // Helper: save rates for a specific date
     static async Task SaveRatesForDate(MyDbContext context, DateOnly rateDate, Dictionary<string, decimal> rates)
     {
+        Log.Information($"Processing rates for {rateDate}...");
+
+        // FIXED: compute the DateTime once before the loop
+        DateTime rateDateTime = rateDate.ToDateTime(TimeOnly.MinValue);
+
+        // Find margin id once for the entire date (if applicable)
+        int? marginId = context.FindMarginIdForDate(rateDateTime);
+        if (marginId.HasValue)
+            Console.WriteLine($"For date {rateDate} selected MarginId: {marginId}");
+
         foreach (var rate in rates)
         {
-            var toCurrency = context.Currencies.FirstOrDefault(c => c.CurrencyCode == rate.Key)
-                ?? new Currency { CurrencyCode = rate.Key };
+            // 1. Ensure the currency exists (create if missing)
+            var toCurrency = context.Currencies.FirstOrDefault(c => c.CurrencyCode == rate.Key);
 
-            if (toCurrency.Id == 0)
+            if (toCurrency == null)
             {
+                toCurrency = new Currency { CurrencyCode = rate.Key };
                 context.Currencies.Add(toCurrency);
-                context.SaveChanges();
+                await context.SaveChangesAsync();
             }
 
+            // 2. Duplicate check (defensive)
+            // FIXED: use the precomputed rateDateTime for comparison
             bool exists = context.CurrencyRates.Any(cr =>
-                cr.Date == rateDate &&
+                cr.Date == rateDateTime &&
                 cr.ToCurrencyId == toCurrency.Id);
 
-            if (exists)
-            {
-                Log.Information($"Rate for EUR → {rate.Key} on {rateDate} already exists. Skipping.");
-                continue;
-            }
+            if (exists) continue;
 
-            // Найти подходящую маржу для этой даты
-            int? marginId = context.FindMarginIdForDate(rateDate.ToDateTime(TimeOnly.MinValue));
-            Console.WriteLine($"Для даты {rateDate} выбрана MarginId: {marginId}");
-
-            var newRate = new CurrencyRate
+            // 3. Create a new currency rate record
+                var newRate = new CurrencyRate
             {
-                Date = rateDate,
+                // FIXED: use the precomputed rateDateTime
+                Date = rateDateTime,
                 ToCurrencyId = toCurrency.Id,
                 ExchangeRate = rate.Value,
                 MarginId = marginId
             };
 
             context.CurrencyRates.Add(newRate);
-            context.SaveChanges();
-
-            Log.Information($"Saved rate: EUR → {rate.Key} = {rate.Value} on {rateDate}");
         }
+
+        await context.SaveChangesAsync();
+        Log.Information($"Saved {rates.Count} rates for {rateDate}");
     }
 }
 
-// For single date response
+// Models
 public class FrankfurterResponse
 {
     [JsonPropertyName("amount")]
@@ -192,7 +258,6 @@ public class FrankfurterResponse
     public Dictionary<string, decimal> Rates { get; set; } = new();
 }
 
-// For range response
 public class FrankfurterRangeResponse
 {
     [JsonPropertyName("amount")]
