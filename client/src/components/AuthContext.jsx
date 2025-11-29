@@ -6,17 +6,23 @@ This eliminates repeated network calls during navigation,
 instantly validating protected routes and making the UI much faster. 
 It also acts as the secure bridge to read the user's identity from the server's HttpOnly cookie.
 */
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const didRunRef = useRef(false);
 
+
+  // Run the auth check only once when the app first loads (on full page refresh).
   useEffect(() => {
-    // Run the auth check only once when the app first loads (on full page refresh)
-    // This avoids repeated network calls
+
+    // Remove unnecessary double execution
+    // if (didRunRef.current) return;
+    // didRunRef.current = true;
+
     const checkUser = async () => {
       try {
         const res = await fetch('http://localhost:4000/api/auth/me', { credentials: 'include' });

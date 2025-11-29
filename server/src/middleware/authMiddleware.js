@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 // IMPORTANT: Secret key as in auth.js
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret'; ////
+const JWT_SECRET = process.env.JWT_SECRET
 
 /*
 Middleware to verify JWT stored in the 'token' cookie.

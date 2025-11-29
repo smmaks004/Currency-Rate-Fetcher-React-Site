@@ -5,10 +5,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { protect } = require('../middleware/authMiddleware');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret'; ////
+const JWT_SECRET = process.env.JWT_SECRET
 
 // Special email allowed to bypass password check in development (set BYPASS_EMAIL env to enable)
-const BYPASS_EMAIL = process.env.BYPASS_EMAIL || 'test_email';
+const BYPASS_EMAIL = process.env.BYPASS_EMAIL;
 
 // Helper: sign token
 function signToken(payload) {
@@ -16,7 +16,7 @@ function signToken(payload) {
 }
 
 // POST /api/auth/login
-// body: { email, password }
+// This endpoint is used only once, when the user try to enter in system
 router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email required' });
@@ -28,7 +28,8 @@ router.post('/login', async (req, res) => {
     const user = rows[0];
 
     let ok = false;
-    // BYPASS_EMAIL: allow login for this email (dev) without password check
+
+    // BYPASS_EMAIL: allow login for this email (dev) without password check || JUST FOR TESTING
     if (email && email.toLowerCase() === BYPASS_EMAIL.toLowerCase()) {
       console.warn('Auth bypass used for', email);
       ok = true;
@@ -43,14 +44,14 @@ router.post('/login', async (req, res) => {
 
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
-    // update last login (best-effort)
+    // Update last login
     try {
       await pool.query('UPDATE Users SET LastLogin = NOW() WHERE Id = ?', [user.Id]);
     } catch (e) {
       console.error('Failed to update last login', e);
     }
 
-    // sign JWT and set as httpOnly cookie
+    // Sign JWT and set as httpOnly cookie
     const token = signToken({ 
       id: user.Id, 
       email: user.Email , 
@@ -68,13 +69,14 @@ router.post('/login', async (req, res) => {
     };
     res.cookie('token', token, cookieOptions);
 
-    // return safe user object (include Role so client gets same shape as /me)
-    return res.json({ Id: user.Id, Email: user.Email, FirstName: user.FirstName, LastName: user.LastName/*, Role: user.Role*/ });
+    // Return safe user object
+    return res.json({ Id: user.Id, Email: user.Email, FirstName: user.FirstName, LastName: user.LastName, Role: user.Role });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'DB error' });
   }
 });
+
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
@@ -82,9 +84,10 @@ router.post('/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+
 // GET /api/auth/me
-// returns currently authenticated user based on httpOnly cookie 'token'
-router.get('/me', protect, async (req, res) => {
+// This endpoint is used continuously to recognize user identity.
+router.get('/me', async (req, res) => {
   /* OLD  */
   // try {
   //   const userId = req.user && req.user.id;
@@ -101,25 +104,33 @@ router.get('/me', protect, async (req, res) => {
   // }
 
 /* New version DOWN */
-try {
-    // req.user already contains decoded token data (id, email, role) thanks to the `protect` middleware
-  if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const token = req.cookies && req.cookies.token;
+    if (!token) {
+      // No token: return 200 with null (client will treat as unauthenticated)
+      return res.json(null);
+    }
+
+    try {
+      const decoded = require('jsonwebtoken').verify(token, JWT_SECRET);
+
+      // Return user info directly from the token payload
+      return res.json({
+        Id: decoded.id,
+        Email: decoded.email,
+        FirstName: decoded.firstName,
+        LastName: decoded.lastName,
+        Role: decoded.role,
+      });
+    } catch (err) {
+      // Invalid/expired token: treat as unauthenticated (do not return 401)
+      return res.json(null);
+    }
+
+  } catch (err) {
+    console.error('GET /api/auth/me failed', err);
+    res.status(500).json({ error: 'Server error' });
   }
-
-    // Return user info directly from the token payload
-  res.json({
-      Id: req.user.id,
-      Email: req.user.email,  
-      Role: req.user.role, 
-      FirstName: req.user.firstName, 
-      LastName: req.user.lastName    
-  });
-
-} catch (err) {
-  console.error('GET /api/auth/me failed', err);
-  res.status(500).json({ error: 'DB error' });
-}
 
 
 
