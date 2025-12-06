@@ -29,7 +29,7 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        // 1. Configure logger
+        // Configure logger
         Log.Logger = new LoggerConfiguration()
             .WriteTo.File(
                 path: "logs/log-.txt",
@@ -42,15 +42,11 @@ class Program
 
         try
         {
-            // 2. Load configuration
+            // Load configuration
             var databaseConfig = SettingsHelper.SettingsLoading();
 
             using var client = new HttpClient();
             using var context = new MyDbContext(databaseConfig);
-
-            // ============================================================
-            // Logic to choose which Frankfurter API endpoint to call
-            // ============================================================
 
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
 
@@ -64,7 +60,6 @@ class Program
 
             if (lastRate == null)
             {
-                // SCENARIO 0: database is empty — fetch a full historical range
                 DateOnly defaultStart = new DateOnly(2024, 1, 1);
                 Log.Information("Database is empty. Fetching range from default date.");
 
@@ -73,19 +68,16 @@ class Program
             }
             else
             {
-                // FIXED: convert DB DateTime to DateOnly for proper date comparisons
                 DateOnly lastDbDate = DateOnly.FromDateTime(lastRate.Date);
                 Log.Information($"Last date in DB: {lastDbDate}. Today: {today}");
 
                     if (lastDbDate >= today)
                 {
-                        // SCENARIO 1: database is up to date
                     Log.Information("Database is up to date (LastDate >= Today). Nothing to do.");
-                    return; // exit program
+                    return;
                 }
                 else if (lastDbDate == today.AddDays(-1))
                 {
-                    // SCENARIO 2: gap is exactly one day — request 'latest'
                     Log.Information("Gap is exactly 1 day. Using 'latest' endpoint.");
 
                     apiUrl = "https://api.frankfurter.dev/v1/latest?base=EUR";
@@ -93,7 +85,6 @@ class Program
                 }
                 else
                 {
-                    // SCENARIO 3: gap is greater than one day — fetch a date range
                     DateOnly startDate = lastDbDate.AddDays(1);
                     Log.Information($"Gap is > 1 day. Fetching range: {startDate} .. {today}");
 
@@ -196,7 +187,6 @@ class Program
     {
         Log.Information($"Processing rates for {rateDate}...");
 
-        // FIXED: compute the DateTime once before the loop
         DateTime rateDateTime = rateDate.ToDateTime(TimeOnly.MinValue);
 
         // Find margin id once for the entire date (if applicable)
@@ -206,7 +196,7 @@ class Program
 
         foreach (var rate in rates)
         {
-            // 1. Ensure the currency exists (create if missing)
+            // Ensure the currency exists (create if missing)
             var toCurrency = context.Currencies.FirstOrDefault(c => c.CurrencyCode == rate.Key);
 
             if (toCurrency == null)
@@ -216,18 +206,16 @@ class Program
                 await context.SaveChangesAsync();
             }
 
-            // 2. Duplicate check (defensive)
-            // FIXED: use the precomputed rateDateTime for comparison
+            // Duplicate check (defensive)
             bool exists = context.CurrencyRates.Any(cr =>
                 cr.Date == rateDateTime &&
                 cr.ToCurrencyId == toCurrency.Id);
 
             if (exists) continue;
 
-            // 3. Create a new currency rate record
+            // Create a new currency rate record
                 var newRate = new CurrencyRate
             {
-                // FIXED: use the precomputed rateDateTime
                 Date = rateDateTime,
                 ToCurrencyId = toCurrency.Id,
                 ExchangeRate = rate.Value,

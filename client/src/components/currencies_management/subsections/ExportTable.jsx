@@ -1,0 +1,214 @@
+import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
+// Import libraries for generating real PDF
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function escapeCsvCell(v) {
+  if (v == null) return '';
+  const s = String(v);
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function readVisibleTable() {
+  const table = document.querySelector('.curr-table');
+  if (!table) return { headers: [], rows: [] };
+
+  const headers = Array.from(table.querySelectorAll('thead th')).map(h => h.textContent.trim());
+
+  const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr => {
+    const style = window.getComputedStyle(tr);
+    if (style.display === 'none') return null;
+    const cells = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
+    return cells;
+  }).filter(r => r && r.length > 0);
+
+  return { headers, rows };
+}
+
+export default function ExportTable({ rows: propRows, headers: propHeaders, filename: propFilename }) {
+  const [format, setFormat] = useState('csv');
+  const [filename, setFilename] = useState(propFilename || 'currency_export');
+  
+  // New state to store the generated PDF URL
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
+
+  // Clean up URL when component unmounts (to avoid memory bloat)
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    };
+  }, [pdfUrl]);
+
+  const toCsvLines = (headers, rows) => {
+    const lines = [];
+    lines.push(headers.map(escapeCsvCell).join(','));
+    for (const r of rows) lines.push(r.map(escapeCsvCell).join(','));
+    return lines.join('\n');
+  };
+
+  const formatRowToCells = (r) => {
+    if (!r) return [];
+    if (Array.isArray(r)) return r;
+    const dateStr = r.date ? (new Date(r.date)).toLocaleDateString() : '';
+    return [r.from, r.to, (r.ecb != null ? Number(r.ecb).toFixed(6) : ''), (r.sell != null ? Number(r.sell).toFixed(6) : ''), (r.buy != null ? Number(r.buy).toFixed(6) : ''), dateStr];
+  };
+
+  const makeHeaders = (headersFromDom) => {
+    if (propHeaders && propHeaders.length) return propHeaders;
+    if (headersFromDom && headersFromDom.length) return headersFromDom;
+    return ['From', 'To', 'ECB rate', 'Sell rate', 'Buy rate', 'Date'];
+  };
+
+  const handleAction = () => {
+    // Collect data
+    let headers = [];
+    let rows = [];
+
+    if (propRows && Array.isArray(propRows) && propRows.length > 0) {
+      headers = makeHeaders(propHeaders);
+      rows = propRows.map(formatRowToCells);
+    } else {
+      const dom = readVisibleTable();
+      headers = makeHeaders(dom.headers);
+      rows = dom.rows;
+    }
+
+    if (!headers.length || !rows.length) {
+      alert('Table not found or empty.');
+      return;
+    }
+
+    // Format-specific logic
+    if (format === 'csv') {
+      const csv = toCsvLines(headers, rows);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      downloadBlob(blob, filename + '.csv');
+      setShowPdfViewer(false);
+      return;
+    }
+
+    
+    if (format === 'xlsx') {
+      const aoa = [headers, ...rows];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      downloadBlob(blob, filename + '.xlsx');
+      setShowPdfViewer(false);
+      return;
+    }
+
+
+    if (format === 'pdf') {
+      /* GENERATE REAL PDF */
+      const doc = new jsPDF();
+
+      // Add title (centered on page)
+      const pageWidth = (doc.internal.pageSize && typeof doc.internal.pageSize.getWidth === 'function')
+        ? doc.internal.pageSize.getWidth()
+        : doc.internal.pageSize.width;
+      doc.setFontSize(20);
+      try { doc.setFont(undefined, 'bold'); } catch (e) { 
+        try { doc.setFontStyle && doc.setFontStyle('bold'); } catch (e) { /* ignore */ } 
+      }
+      doc.text("Report", pageWidth / 2, 18, { align: 'center' });
+
+
+      // Generate table inside PDF
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 30,
+        theme: 'grid', // Table style (grid, striped, plain)
+        styles: { fontSize: 10 },
+      });
+
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      
+      setPdfUrl(url);
+      setShowPdfViewer(true);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+          <input type="radio" name="format" value="csv" checked={format === 'csv'} onChange={() => setFormat('csv')} />
+          <strong>CSV</strong>
+        </label>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+          <input type="radio" name="format" value="xlsx" checked={format === 'xlsx'} onChange={() => setFormat('xlsx')} />
+          <strong>Excel</strong>
+        </label>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+          <input type="radio" name="format" value="pdf" checked={format === 'pdf'} onChange={() => setFormat('pdf')} />
+          <strong>PDF (Preview)</strong>
+        </label>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <label style={{ minWidth: 80 }}>Filename:</label>
+        <input value={filename} onChange={(e) => setFilename(e.target.value)} style={{ padding: '6px 8px', flex: 1 }} />
+      </div>
+
+      <div>
+        <button 
+          className="tab-btn" 
+          onClick={handleAction} 
+          style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px' }}
+        >
+          {format === 'pdf' ? 'Generate & Preview PDF' : 'Download file'}
+        </button>
+      </div>
+
+      <div style={{ color: '#6b7280', fontSize: 13 }}>
+        - CSV: values separated by commas.<br />
+        - Excel: .xlsx file.<br />
+        - PDF: opens the built-in viewer below.
+      </div>
+
+      {/* === PDF PREVIEW BLOCK === */}
+      {showPdfViewer && pdfUrl && format === 'pdf' && (
+        <div style={{ marginTop: 20, border: '1px solid #ccc', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ background: '#f0f0f0', padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ccc' }}>
+            <span style={{ fontWeight: 'bold' }}>PDF Preview</span>
+            <button 
+              onClick={() => setShowPdfViewer(false)} 
+              style={{ cursor: 'pointer', padding: '4px 8px' }}
+            >
+              Close
+            </button>
+          </div>
+          <iframe 
+            src={pdfUrl} 
+            width="100%" 
+            height="700px" 
+            style={{ border: 'none', display: 'block' }}
+            title="PDF Preview"
+          />
+        </div>
+      )}
+    </div>
+  );
+}

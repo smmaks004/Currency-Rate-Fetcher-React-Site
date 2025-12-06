@@ -1,3 +1,4 @@
+/* 1. Containers and main cards */
 .home-container {
   display: flex;
   flex-direction: column;
@@ -6,23 +7,22 @@
   color: #e7eefc;
 }
 
-.topbar {
+.main-card {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 2rem;
+  max-width: 1100px;
+  margin: 2rem auto;
 }
-.brand {
-  font-weight: 700;
-  font-size: 1.2rem;
-  color: #ffffff;
+.main-card.wide {
+  max-width: 1400px;
+  padding: 2.5rem;
+  width: calc(100% - 3rem);
 }
-.top-actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
+
+
+/* Headline blocks */
 .headline {
   font-weight: 600;
   color: #cfe1ff;
@@ -32,8 +32,10 @@
   font-size: 0.95rem;
 }
 
-/* controls-specific headline (bigger and centered above selects) */
+
+/* Controls specific headline */
 .controls .controls-head {
+  /* flex: 1 1 auto; */
   display: block;
   /* margin: 0 auto 0.8rem auto; */
   margin: 0;
@@ -47,14 +49,8 @@
   max-width: 420px;
 }
 
-.btn-primary {
-  background: linear-gradient(90deg,#6c8cff,#8fd3ff);
-  color: #051025;
-  border: none;
-  padding: 0.45rem 0.9rem;
-  border-radius: 8px;
-  cursor: pointer;
-}
+
+/* 3. Buttons */
 .btn-ghost {
   background: transparent;
   color: #cfe1ff;
@@ -64,24 +60,20 @@
   cursor: pointer;
 }
 
-.main-card {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 2rem;
-  max-width: 1100px;
-  margin: 2rem auto;
-}
 
+/* Controls / selectors */
 .controls {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
 }
+
 .select-row {
   display: flex;
   gap: 1rem;
   align-items: center;
-  margin-left: 1rem;
+  margin-left: auto;
 }
 .select-row label {
   display: flex;
@@ -97,24 +89,6 @@
   background: rgba(255,255,255,0.02);
   color: #fff;
 }
-
-.chart-card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 6px 30px rgba(9,12,20,0.6);
-}
-.chart-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:0.75rem;
-}
-.chart-header h3 { margin: 0; }
-.chart-sub { color: #bcd2ff; font-size: 0.85rem }
-
-.chart-area { padding: 0.5rem 0; }
-.sparkline { width: 100%; height: 160px; display:block; }
 
 .mode-control {
   display: flex;
@@ -136,18 +110,59 @@
   border-color: rgba(108,140,255,0.2);
 }
 
-.main-card.wide { max-width: 1400px; padding: 2.5rem; width: calc(100% - 3rem); }
 
-/* ensure chart canvas uses available width */
+/* Chart area */
+.chart-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 6px 30px rgba(9,12,20,0.6);
+}
+.chart-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:0.75rem;
+}
+.chart-header h3 { margin: 0; }
+.chart-area { padding: 0.5rem 0; }
 .chart-area canvas { width: 100% !important; }
-
-.chart-legend { display:flex; justify-content:space-between; color:#9fb7ff; font-size:0.9rem; margin-top:0.6rem }
-
-.mini-stats { opacity: 0.9 }
-
-@media (max-width: 720px) {
-  .select-row { flex-direction: column; }
-  .top-actions { gap: 0.5rem }
-  .main-card { padding: 1rem; margin: 1rem; }
+.chart-legend {
+  display:flex;
+  justify-content:space-between;
+  color:#9fb7ff;
+  font-size:0.9rem;
+  margin-top:0.6rem
 }
 
+.mini-stats { opacity: 0.9 } 
+
+
+/* Latest currency-point cards under the chart */
+.latest-currency-points {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #cbd5e1;
+}
+.currency-point-card {
+  background: #0f1724;
+  padding: 8px 10px;
+  border-radius: 8px;
+  min-width: 130px;
+  text-align: center;
+  box-shadow: 0 4px 18px rgba(2,6,20,0.5);
+}
+.currency-point-card .label { font-size: 12px; color: #9ca3af; }
+.currency-point-card .value { font-size: 16px; font-weight: 600; margin-top: 6px; }
+.currency-point-card .date { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+.currency-point-note { color: #94a3b8; font-size: 12px; }
+
+
+/* Flexibility */
+@media (max-width: 720px) {
+  .select-row { flex-direction: column; margin-left: 0; }
+  /* .top-actions { gap: 0.5rem } */
+  .main-card { padding: 1rem; margin: 1rem; }
+}

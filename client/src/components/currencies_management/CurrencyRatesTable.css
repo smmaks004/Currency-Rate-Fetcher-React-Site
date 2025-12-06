@@ -1,0 +1,143 @@
+/* --------------------- Main table --------------------- */
+.curr-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.curr-table thead th {
+	background: #0b1220;
+	color: #cbd5e1;
+	padding: 8px;
+	text-align: left;
+	cursor: pointer;
+}
+
+.curr-table tbody td {
+	color: #e6eef8;
+	padding: 8px;
+	border-bottom: 1px solid #222;
+}
+
+.curr-table tbody tr:nth-child(even) {
+	background: rgba(255,255,255,0.01);
+}
+
+
+/* --------------------- Filters / Toolbar --------------------- */
+.tab-btn {
+	background: transparent;
+	border: 1px solid #21303a;
+	color: #cbd5e1;
+	padding: 6px 10px;
+	min-width: 90px; /* ensure the filter button doesn't shrink too much */
+	cursor: pointer;
+	border-radius: 6px;
+}
+.tab-btn.active {
+	background: #1f2937;
+}
+
+
+/* --------------------- Dropdowns --------------------- */
+.filter-dropdown {
+	position: absolute;
+	z-index: 30;
+
+	background: #0b0f18;
+
+	border: 1px solid #21303a;
+	padding: 8px;
+	margin-top: 6px;
+	border-radius: 6px;
+	max-height: 300px;
+
+	min-width: 90px; /* ensure dropdown is wide enough for its contents */
+
+	overflow: auto;
+	-ms-overflow-style: none; 
+	scrollbar-width: none; 
+}
+.filter-dropdown::-webkit-scrollbar {
+	display: none; 
+}
+.filter-button-row {
+	display: flex;
+	flex-direction: column; 
+	align-items: stretch; 
+
+	border-bottom: 1px solid #21303a;
+
+	width: 100%;
+	margin-bottom: 6px;
+	gap: 8px;
+	padding: 6px 0;
+}
+.filter-list {
+	display: flex;
+	flex-direction: column;
+
+	gap: 6px;
+}
+.filter-label {
+	display: flex;
+	align-items: center;
+
+	gap: 8px;
+}
+.filter-label .currency-code {
+	color: #cbd5e1;
+}
+.filter-select-btn {
+	width: 100%;
+	box-sizing: border-box;
+	white-space: nowrap; /* prevent button text from wrapping */
+}
+.filter-clear-btn {
+	width: 100%;
+	box-sizing: border-box;
+	white-space: nowrap; /* prevent button text from wrapping */
+}
+
+
+/* --------------------- Pagination --------------------- */
+.pagination {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+
+	margin-top: 12px;
+}
+.pagination-controls {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+.pagination button {
+	background: transparent;
+	border: 1px solid #2a2f3a;
+	color: #cbd5e1;
+	padding: 6px 8px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+.pagination button[disabled] {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.apply-btn {
+	padding: 6px 12px;
+	margin-bottom: 0;
+}
+
+/* --------------------- Other --------------------- */
+.table-wrapper {
+	overflow-x: auto;
+}
+.no-data-cell {
+	padding: 12px;
+}
+
+.error {
+	color: #ff6b6b;
+}

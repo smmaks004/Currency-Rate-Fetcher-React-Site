@@ -6,6 +6,7 @@ require('dotenv').config();
 const currenciesRouter = require('./routes/currencies');
 const ratesRouter = require('./routes/rates');
 const authRouter = require('./routes/auth');
+const updateRouter = require('./routes/update');
 
 const app = express();
 app.use(cors({
@@ -18,6 +19,7 @@ app.use(cookieParser());////
 app.use('/api/currencies', currenciesRouter);
 app.use('/api/rates', ratesRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/update', updateRouter);
 
 // Lightweight health check for debugging CORS / network issues
 app.get('/api/health', (req, res) => {

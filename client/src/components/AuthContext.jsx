@@ -1,10 +1,7 @@
 /*
 Authentication & Performance Layer
-This Context centralizes the user's login status and role data for the entire app. 
-It performs a single secure check on load, caching the user object in memory. 
-This eliminates repeated network calls during navigation, 
-instantly validating protected routes and making the UI much faster. 
-It also acts as the secure bridge to read the user's identity from the server's HttpOnly cookie.
+This Context centralizes the user's login status and role data for the entire app
+It performs a single secure check on load, caching the user object in memory
 */
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
@@ -22,7 +19,6 @@ export const AuthProvider = ({ children }) => {
     // Remove unnecessary double execution
     // if (didRunRef.current) return;
     // didRunRef.current = true;
-
     const checkUser = async () => {
       try {
         const res = await fetch('http://localhost:4000/api/auth/me', { credentials: 'include' });
@@ -42,8 +38,7 @@ export const AuthProvider = ({ children }) => {
     checkUser();
   }, []);
 
-  // Login: accept server response and optionally refresh authoritative user
-  // by calling /api/auth/me (reads httpOnly cookie)
+  // Login: accept server response and optionally refresh authoritative user by calling /api/auth/me (reads httpOnly cookie)
   // This helps to avoid racey or duplicated fetches from multiple components
   const login = async (userData, { refresh = true } = {}) => {
     setUser(userData); // Optimistic set from login response (because it is first)
@@ -61,7 +56,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Helper to explicitly refresh user from server
   const refreshUser = async () => {
     try {
       const res = await fetch('http://localhost:4000/api/auth/me', { credentials: 'include' });

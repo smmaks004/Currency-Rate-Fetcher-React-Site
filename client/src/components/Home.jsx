@@ -1,402 +1,729 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import './Home.css';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import Highcharts from 'highcharts/highstock';
+import HighchartsReact from 'highcharts-react-official';
 
-import { Chart as ChartJS, LineElement, PointElement, LinearScale, TimeScale, Tooltip, Legend, Title } from 'chart.js';
-import { Line } from 'react-chartjs-2';
-import 'chartjs-adapter-date-fns';
+import RateConverter from './Converter';
+import './Home.css';
+import Header from './Header';
 import { useAuth } from './AuthContext';
 
-ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Legend, Title);
+// Creates a debounced callback: delays invocation until 'wait' ms after the last call. 
+// The returned function includes a 'cancel' method to abort a pending invocation.
+function useDebounceCallback(fn, wait) {
+  const timeoutRef = useRef(null);
+  const callbackRef = useRef(fn);
+  useEffect(() => { callbackRef.current = fn; }, [fn]);
+  const debounced = useCallback((...args) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
+      callbackRef.current(...args);
+    }, wait);
+  }, [wait]);
+  debounced.cancel = () => { if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; } };
+  return debounced;
+}
 
-  const parseDate = (d) => {
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return null;
-    return dt;
-  };
+// Parse an input value into a valid Date object or return null
+const parseDate = (d) => {
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return null;
+  
+  return dt;
+};
 
-  export default function Home() {
-    const [currencies, setCurrencies] = useState([]);
-    const [fromId, setFromId] = useState(null);
-    const [toId, setToId] = useState(null);
-    const [mode, setMode] = useState('mix'); // 'buy' | 'sell' | 'mix' *****| 'mid'
-    const [chart, setChart] = useState({ labels: [], /*midValues: [],*/ buyValues: [], sellValues: [] });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [debugLogs, setDebugLogs] = useState([]);
+export default function Home() {
+  const [currencies, setCurrencies] = useState([]); 
+  const [fromId, setFromId] = useState(null); // selected 'from' currency Id
+  const [toId, setToId] = useState(null); // selected 'to' currency Id
+  const [mode, setMode] = useState('mix'); // display mode: 'buy' | 'sell' | 'mix'
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(''); 
+  const [debugLogs, setDebugLogs] = useState([]); 
 
-    const logDebug = (msg) => {
-      const line = `${new Date().toISOString()} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`;
-      setDebugLogs((s) => [...s.slice(-200), line]);
-      console.debug(line);
+  const chartRef = useRef(null);
+  const cacheRef = useRef({});
+  const fullTimelineRef = useRef([]);
+  const fullMinRef = useRef(null);
+  const fullMaxRef = useRef(null);
+  const initialPopulatedRef = useRef(false); // prevents forcing the initial range multiple times
+
+  const [chartReady, setChartReady] = useState(false);
+  const [latestRates, setLatestRates] = useState(null);
+  const { user } = useAuth();
+  
+  
+  const logDebug = useCallback((msg) => {
+    const line = `${new Date().toISOString()} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`;
+    setDebugLogs((s) => [...s.slice(-200), line]);
+    console.debug(line);
+  }, []);
+
+  // -----------------------------------------------------------
+  // Load currency list from backend with retries
+  // Populates 'currencies' and selects sensible defaults for 'fromId'/'toId'
+  // Retries quietly up to 'maxRetries' on transient errors
+  // -----------------------------------------------------------
+  useEffect(() => {
+    let cancelled = false;
+    const maxRetries = 10;
+    const retryDelay = 2000; // ms
+
+    const load = async (attempt = 1) => {
+      try {
+        const res = await fetch('http://localhost:4000/api/currencies');
+        if (!res.ok) throw new Error('currencies fetch failed');
+        const d = await res.json();
+        if (cancelled) return;
+        if (Array.isArray(d) && d.length > 0) {
+          setCurrencies(d);
+          setFromId((c) => c || d[0].Id);
+          setToId((c) => c || (d[1] && d[1].Id) || d[0].Id);
+          setError('');
+          return;
+        }
+        throw new Error('no currencies in response');
+      } catch (err) {
+        logDebug(`Currencies fetch attempt ${attempt} failed: ${err && err.message ? err.message : err}`);
+        if (cancelled) return;
+        if (attempt < maxRetries) {
+          setTimeout(() => load(attempt + 1), retryDelay);
+        } else {
+          setError('Failed to load currency list (server unavailable)');
+        }
+      }
     };
 
-    const navigate = useNavigate();
+    load();
+    return () => { cancelled = true; };
+  }, [logDebug]);
 
-    useEffect(() => {
-      let cancelled = false;
-      const maxRetries = 10;
-      const retryDelay = 2000; // ms
-
-      const load = async (attempt = 1) => {
-        try {
-          const res = await fetch('http://localhost:4000/api/currencies');
-          if (!res.ok) throw new Error('currencies fetch failed');
-          const d = await res.json();
-          if (cancelled) return;
-          if (Array.isArray(d) && d.length > 0) {
-            setCurrencies(d);
-            setFromId((c) => c || d[0].Id);
-            setToId((c) => c || (d[1] && d[1].Id) || d[0].Id);
-            setError('');
-            return;
-          }
-          throw new Error('no currencies in response');
-        } catch (err) {
-          console.warn(`Currencies fetch attempt ${attempt} failed`, err);
-          logDebug(`Currencies fetch attempt ${attempt} failed: ${err && err.message ? err.message : err}`);
-          if (cancelled) return;
-          if (attempt < maxRetries) {
-            setTimeout(() => load(attempt + 1), retryDelay);
-          } else {
-            // after retries, leave currencies empty but do not show a blocking error
-            setError('Failed to load currency list (server unavailable)');
-            console.warn('Currencies fetch exhausted retries');
-            logDebug('Currencies fetch exhausted retries');
-          }
-        }
-      };
-
-      load();
-      return () => { cancelled = true; };
-    }, []);
-
-    const fetchRates = useCallback(async (currencyId) => {
-      try {
-        const res = await fetch(`http://localhost:4000/api/rates/${currencyId}`);
-        if (!res.ok) {
-          const body = await res.text().catch(() => '');
-          throw new Error(`rates fetch failed status=${res.status} body=${body}`);
-        }
-        const rows = await res.json();
-        const map = new Map();
-        for (const r of rows) {
-          const dt = parseDate(r.Date);
-          if (!dt) continue;
-
-          
-          // Had a problems with correct date handling in charts
-          // Use local date (year-month-day) as key to avoid UTC timezone shifts that
-          const y = dt.getFullYear();
-          const m = String(dt.getMonth() + 1).padStart(2, '0');
-          const d = String(dt.getDate()).padStart(2, '0');
-          const key = `${y}-${m}-${d}`;
-          
-          // store a Date at local midnight to render consistently in chart (no TZ shift)
-          const localMidnight = new Date(y, dt.getMonth(), dt.getDate());
-          map.set(key, { rate: Number(r.ExchangeRate), margin: r.MarginValue != null ? Number(r.MarginValue) : 0, date: localMidnight });
-        }
-        return map;
-      } catch (err) {
-        console.warn('fetchRates failed for', currencyId, err);
-        logDebug(`fetchRates failed for ${currencyId}: ${err && err.message ? err.message : err}`);
+  // -----------------------------------------------------------
+  // fetchRates: request full history for a currency and return a Map
+  // keyed by 'YYYY-MM-DD' local date -> { rate, margin, date }
+  // This is used to populate the per-currency cache once
+  // -----------------------------------------------------------
+  const fetchRates = useCallback(async (currencyId) => {
+    try {
+      // backend returns full history for GET /api/rates/:currencyId
+      const url = `http://localhost:4000/api/rates/${currencyId}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        logDebug(`fetchRates failed ${currencyId} status=${res.status}`);
         return new Map();
       }
-    }, []);
+      const rows = await res.json();
+      const map = new Map();
+      for (const r of rows) {
+        const dt = parseDate(r.Date);
+        if (!dt) continue;
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const d = String(dt.getDate()).padStart(2, '0');
+        const key = `${y}-${m}-${d}`;
 
-    const buildChart = useCallback(async (fId, tId) => {
-      if (!fId || !tId) return;
-      setLoading(true);
-      setError('');
+        // Store a local-date-based object
+        map.set(key, { rate: Number(r.ExchangeRate), margin: r.MarginValue != null ? Number(r.MarginValue) : 0, date: new Date(y, dt.getMonth(), dt.getDate()) });
+      }
+      return map;
+    } catch (err) {
+      logDebug(`fetchRates error for ${currencyId}: ${err && err.message ? err.message : err}`);
+      return new Map();
+    }
+  }, [logDebug]);
+
+  // -----------------------------------------------------------
+  // ensureCurrencyCached: load and memoize the full history for 'currencyId'
+  // Returns an object { loaded: bool, map: Map }
+  // -----------------------------------------------------------
+  const ensureCurrencyCached = useCallback(async (currencyId) => {
+    if (!currencyId) return { loaded: false, map: new Map() };
+    if (cacheRef.current[currencyId]?.loaded) return cacheRef.current[currencyId];
+    
+    // mark placeholder to avoid duplicates
+    cacheRef.current[currencyId] = { loaded: false, map: new Map() };
+    const map = await fetchRates(currencyId);
+    cacheRef.current[currencyId] = { loaded: true, map };
+    logDebug(`Cached ${currencyId} rows=${map.size}`);
+    return cacheRef.current[currencyId];
+  }, [fetchRates, logDebug]);
+
+  // -----------------------------------------------------------
+  // buildFullTimeline: compute the earliest and latest recorded dates
+  // across the two currencies and populate 'fullTimelineRef' with
+  // daily UTC timestamps from min..max inclusive.
+  // -----------------------------------------------------------
+  const buildFullTimeline = useCallback(async (fId, tId) => {
+    if (!fId || !tId) return;
+    
+    // Ensure both caches loaded
+    const [fc, tc] = await Promise.all([ensureCurrencyCached(fId), ensureCurrencyCached(tId)]);
+    const allDates = [];
+
+    // Gather keys (dates) from both maps
+    if (fc && fc.map) for (const v of fc.map.values()) if (v && v.date) allDates.push(v.date);
+    if (tc && tc.map) for (const v of tc.map.values()) if (v && v.date) allDates.push(v.date);
+
+    if (allDates.length === 0) {
+      fullTimelineRef.current = [];
+      fullMinRef.current = null;
+      fullMaxRef.current = null;
+      return;
+    }
+
+    allDates.sort((a, b) => a - b);
+    const min = allDates[0];
+    const max = allDates[allDates.length - 1];
+    fullMinRef.current = new Date(min.getFullYear(), min.getMonth(), min.getDate());
+    fullMaxRef.current = new Date(max.getFullYear(), max.getMonth(), max.getDate());
+
+    // Build list of daily UTC timestamps (ms) from min..max inclusive
+    const timeline = [];
+    const cursor = new Date(fullMinRef.current);
+    // use UTC normalized timestamps for chart (Date.UTC)
+    while (cursor <= fullMaxRef.current) {
+      timeline.push(Date.UTC(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    fullTimelineRef.current = timeline;
+    logDebug(`Built full timeline from ${fullMinRef.current.toISOString().slice(0,10)} to ${fullMaxRef.current.toISOString().slice(0,10)} length=${timeline.length}`);
+    return;
+  }, [ensureCurrencyCached, logDebug]);
+
+  
+  // keyFromTimestampUTC: given a UTC timestamp used in the chart timeline
+  const keyFromTimestampUTC = (ts) => {
+    const d = new Date(ts);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+    // -----------------------------------------------------------
+    // computeLatestRates: scan timeline from new to old and find the most recent for both buy and sell
+    // Uses LOCF (last-observation-carried-forward) plus a synthetic EUR fallback when appropriate
+    // -----------------------------------------------------------
+    const computeLatestRates = useCallback(async (fId, tId) => {
+      if (!fId || !tId) { setLatestRates(null); return; }
       try {
-        const [mapFromRaw, mapToRaw] = await Promise.all([fetchRates(fId), fetchRates(tId)]);
+        // ensure cache + timeline
+        await ensureCurrencyCached(fId);
+        await ensureCurrencyCached(tId);
+        if (!fullTimelineRef.current || fullTimelineRef.current.length === 0) {
+          await buildFullTimeline(fId, tId);
+          if (!fullTimelineRef.current || fullTimelineRef.current.length === 0) {
+            setLatestRates(null);
+            return;
+          }
+        }
 
-        // DB stores only EUR -> other currencies. If user selected EUR as one side,
-        // there will be no rows for EUR in CurrencyRates. We synthesize rate=1 entries
-        // for EUR using the dates present in the other currency so daily intersection works.
+        const mapFrom = cacheRef.current[fId]?.map || new Map();
+        const mapTo = cacheRef.current[tId]?.map || new Map();
+
         const fromCur = currencies.find((c) => c.Id === fId);
         const toCur = currencies.find((c) => c.Id === tId);
         const isFromEUR = (fromCur?.CurrencyCode || '').toUpperCase() === 'EUR';
         const isToEUR = (toCur?.CurrencyCode || '').toUpperCase() === 'EUR';
 
-  const mapFrom = new Map(mapFromRaw);
-  const mapTo = new Map(mapToRaw);
+        let lastA = null;
+        let lastB = null;
+        let found = null;
 
-  // debug info
-  console.debug('buildChart: mapFrom size', mapFrom.size, 'mapTo size', mapTo.size, 'fromId', fId, 'toId', tId);
-        if (mapFrom.size === 0 && mapTo.size > 0) {
-          //console.debug('Synthesizing mapFrom (EUR) from mapTo keys, first keys:', Array.from(mapTo.keys()).slice(0,5));
-          mapTo.forEach((v, k) => mapFrom.set(k, { rate: 1, margin: 0, date: v.date }));
-        }
-        if (mapTo.size === 0 && mapFrom.size > 0) {
-          //console.debug('Synthesizing mapTo (EUR) from mapFrom keys, first keys:', Array.from(mapFrom.keys()).slice(0,5));
-          mapFrom.forEach((v, k) => mapTo.set(k, { rate: 1, margin: 0, date: v.date }));
-        }
+        const timeline = fullTimelineRef.current;
+        // scan from newest to oldest
+        for (let i = timeline.length - 1; i >= 0; i--) {
+          const ts = timeline[i];
+          const key = keyFromTimestampUTC(ts);
 
-        // Intersection of dates (daily)
-        let dates = Array.from(mapTo.keys()).filter((k) => mapFrom.has(k));
+          if (mapTo.has(key)) lastA = mapTo.get(key);
+          if (mapFrom.has(key)) lastB = mapFrom.get(key);
 
-        // If intersection is empty but one side is EUR, fall back to using the other's dates
-        if (dates.length === 0 && (isFromEUR || isToEUR)) {
-          const source = (mapTo.size > 0) ? mapTo : mapFrom;
-          dates = Array.from(source.keys());
-        }
-        if (dates.length === 0) {
-          setChart({ labels: [], /*midValues: [], */buyValues: [], sellValues: [] });
-          setLoading(false);
-          return;
-        }
-        dates.sort();
+          const aa = lastA || (isToEUR ? { rate: 1, margin: 0, date: undefined } : null);
+          const bb = lastB || (isFromEUR ? { rate: 1, margin: 0, date: undefined } : null);
 
-        const labels = [];
-        // const midValues = [];
-        const buyValues = [];
-        const sellValues = [];
+          if (!aa || !bb) continue;
 
-        for (const key of dates) {
-          const a = mapTo.get(key);
-          const b = mapFrom.get(key);
-          if (!a || !b) continue;
+          const baseTo = aa.rate;
+          const baseFrom = bb.rate;
+          const marginTo = aa.margin || 0;
+          const marginFrom = bb.margin || 0;
 
-          const baseTo = a.rate;
-          const baseFrom = b.rate;
-          const marginTo = a.margin || 0;
-          const marginFrom = b.margin || 0;
-
-          // console.error(key);
-          // console.error(baseTo);
-          // console.error(baseFrom);
-          // console.error(marginTo);
-          // console.error(marginFrom);
-
-          
-          /*
-          How the rate calculation works (DB stores rates as EUR → X):
-
-          The database only stores daily rates of the form EUR -> X.
-          To get a rate from currency A (from) to currency B (to):
-            - ate = (EUR -> to) / (EUR -> from)
-
-          Examples:
-            - EUR -> CNY  = (EUR->CNY) / 1
-            - USD -> CNY  = (EUR->CNY) / (EUR->USD)
-            - USD -> EUR  = 1 / (EUR->USD)
-
-          Margin handling:
-          - Margins are stored as fractions (e.g. 0.02 == 2%).
-          - We split the margin evenly between buy and sell sides:
-              - sell-side (bank sells currency): base * (1 + margin/2)
-              - buy-side  (bank buys currency):  base * (1 - margin/2)
-
-          Final formulas used here:
-            buy  = (EUR->to with sell adjustment) / (EUR->from with buy adjustment)
-            sell = (EUR->to with buy adjustment)  / (EUR->from with sell adjustment)
-
-          The code below applies these rules per-day using the available EUR->X records.
-          */
-          
-          
-
-          // Buy: customer buys 'to' — use eurTo_sell / eurFrom_buy
+          // Calculate Buy rate
           const eurTo_sell = baseTo * (1 + (marginTo || 0) / 2);
           const eurFrom_buy = baseFrom * (1 - (marginFrom || 0) / 2);
           const buy = eurTo_sell / eurFrom_buy;
-          // Sell: customer sells 'to' — use eurTo_buy / eurFrom_sell
+
+          // Calculate Sell rate
           const eurTo_buy = baseTo * (1 - (marginTo || 0) / 2);
           const eurFrom_sell = baseFrom * (1 + (marginFrom || 0) / 2);
           const sell = eurTo_buy / eurFrom_sell;
 
-          
-
-          // console.log("mid:"+mid);
-          // console.log("buy:"+buy);
-          // console.log("sell:"+sell);
-
-          // store Date objects (not strings) so chartjs date adapter handles them
-          // prefer the original parsed/local-midnight date to avoid TZ shifts
-          // labels.push(a.date || b.date || new Date(key));
-          labels.push(new Date(key));
-          // midValues.push(Number(mid));
-          buyValues.push(Number(buy));
-          sellValues.push(Number(sell));
-
-          // console.log('---');
-          // console.log('');
+          found = { buy: Number(buy), sell: Number(sell), ts };
+          break;
         }
 
-        setChart({ labels, /*midValues,*/ buyValues, sellValues });
-      } catch (err) {
-        console.error(err);
-  setError('Error loading data');
+        setLatestRates(found);
+        if (found) logDebug(`Latest rates computed for pair ${fId}->${tId} date=${new Date(found.ts).toISOString().slice(0,10)}`);
+      } catch (e) {
+        logDebug('computeLatestRates failed: ' + (e && e.message ? e.message : e));
+        setLatestRates(null);
+    }
+  }, [ensureCurrencyCached, buildFullTimeline, currencies, logDebug]);
+
+  // -----------------------------------------------------------
+  // buildSeriesFromCache: construct Buy/Sell series arrays aligned to 'fullTimelineRef'
+  // Compute for each day pair rates and EUR synthetic rate when a currency is EUR
+  // Inputs: fId, tId, optional 'rangeStart'/'rangeEnd' in epoch ms UTC
+  // -----------------------------------------------------------
+  const buildSeriesFromCache = useCallback(async (fId, tId, rangeStart = null, rangeEnd = null) => {
+    if (!fId || !tId) return;
+    if (!fullTimelineRef.current || fullTimelineRef.current.length === 0) {
+      // ensure timeline exists
+      await buildFullTimeline(fId, tId);
+      if (!fullTimelineRef.current || fullTimelineRef.current.length === 0) return;
+    }
+
+    // Default range: past 1 year (but do not force axis)
+    if (!rangeStart || !rangeEnd) {
+      const end = new Date();
+      const start = new Date(end);
+      start.setFullYear(end.getFullYear() - 1);
+      rangeStart = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+      rangeEnd = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+    }
+
+    // Ensure caches present
+    const fCached = await ensureCurrencyCached(fId);
+    const tCached = await ensureCurrencyCached(tId);
+    const mapFrom = fCached?.map || new Map();
+    const mapTo = tCached?.map || new Map();
+
+    const fromCur = currencies.find((c) => c.Id === fId);
+    const toCur = currencies.find((c) => c.Id === tId);
+    const isFromEUR = (fromCur?.CurrencyCode || '').toUpperCase() === 'EUR';
+    const isToEUR = (toCur?.CurrencyCode || '').toUpperCase() === 'EUR';
+
+    const buyPoints = [];
+    const sellPoints = [];
+
+    // ---------------------------------------------------------
+    // Last Observation Carried Forward (LOCF) logic
+    // Maintain the most recent actual recorded values so missing dates can be filled with the last known observation
+    let lastA = null; // last known entry for 'to' currency
+    let lastB = null; // last known entry for 'from' currency
+    // ---------------------------------------------------------
+
+    
+    // Build for every timestamp in full timeline
+    for (const ts of fullTimelineRef.current) {
+      // If ts in requested range, compute, else null
+      if (ts >= rangeStart && ts <= rangeEnd) {
+        const key = keyFromTimestampUTC(ts);
+
+        let a = mapTo.get(key);
+        let b = mapFrom.get(key);
+
+        // Apply LOCF: fall back to last recorded values when current date missing
+        if (!a && lastA) { a = lastA; }
+        if (!b && lastB) { b = lastB; }
+
+        // Update LOCF only when the original map contained a value for this key
+        // This prevents carrying forward synthetic substitutions
+        if (mapTo.has(key)) { lastA = a; }
+        if (mapFrom.has(key)) { lastB = b; }
+
+        // Apply synthetic EUR fallback: if the currency is EUR, treat it as rate=1
+        const aa = a || (isToEUR ? { rate: 1, margin: 0, date: undefined } : undefined);
+        const bb = b || (isFromEUR ? { rate: 1, margin: 0, date: undefined } : undefined);
+
+        // If pair cannot be computed after LOCF and EUR fallback, push null
+        if (!aa || !bb) {
+          buyPoints.push([ts, null]);
+          sellPoints.push([ts, null]);
+          continue;
+        }
+
+        const baseTo = aa.rate;
+        const baseFrom = bb.rate;
+        const marginTo = aa.margin || 0;
+        const marginFrom = bb.margin || 0;
+
+        // Compute pair Buy and Sell using provided margin conventions
+        const eurTo_sell = baseTo * (1 + (marginTo || 0) / 2);
+        const eurFrom_buy = baseFrom * (1 - (marginFrom || 0) / 2);
+        const buy = eurTo_sell / eurFrom_buy;
+
+        const eurTo_buy = baseTo * (1 - (marginTo || 0) / 2);
+        const eurFrom_sell = baseFrom * (1 + (marginFrom || 0) / 2);
+        const sell = eurTo_buy / eurFrom_sell;
+
+        buyPoints.push([ts, Number(buy)]);
+        sellPoints.push([ts, Number(sell)]);
+      } else {
+        // Outside requested range -> null to keep axis stable
+        buyPoints.push([ts, null]);
+        sellPoints.push([ts, null]);
+      }
+    }
+
+    // Update chart series via setData to avoid axis changes
+    const chart = chartRef.current?.chart;
+    if (chart && chart.series && chart.series.length >= 2) {
+      try {
+        const buySeries = chart.series.find(s => s.name === 'Buy') || chart.series[0];
+        const sellSeries = chart.series.find(s => s.name === 'Sell') || chart.series[1];
+        // Replace whole series data (aligned to timeline)
+        buySeries.setData(buyPoints, false, false, false);
+        sellSeries.setData(sellPoints, false, false, false);
+        chart.redraw();
+      } catch (e) {
+        logDebug('setData error: ' + (e && e.message ? e.message : e));
+      }
+    } else {
+      logDebug('Chart not ready for setData');
+    }
+}, [buildFullTimeline, currencies, ensureCurrencyCached, logDebug]);
+
+
+
+  // -----------------------------------------------------------
+  // Debounced loader for afterSetExtremes (when user zooms/pans)
+  // We'll use local cache to compute values for the visible range, and setData with nulls outside to keep axis stable
+  // -----------------------------------------------------------
+  const loadRangeData = useCallback(async (min, max) => {
+    // min/max are epoch ms UTC
+    if (!fromId || !toId) return;
+    setLoading(true);
+    try {
+      await buildSeriesFromCache(fromId, toId, min, max);
+      logDebug(`Loaded range ${new Date(min).toISOString().slice(0,10)} -> ${new Date(max).toISOString().slice(0,10)}`);
+    } catch (e) {
+      logDebug('loadRangeData failed: ' + (e && e.message ? e.message : e));
+    } finally {
+      setLoading(false);
+    }
+  }, [fromId, toId, buildSeriesFromCache, logDebug]);
+
+  const debouncedLoadRange = useDebounceCallback(loadRangeData, 450);
+
+  const afterSetExtremes = useCallback((e) => {
+    if (!e || !e.min || !e.max) return;
+    debouncedLoadRange(e.min, e.max);
+  }, [debouncedLoadRange]);
+
+  
+  // -----------------------------------------------------------
+  // Highstock options - memoized, includes load event to mark chart ready
+  // -----------------------------------------------------------
+  const chartOptions = useMemo(() => {
+    return {
+      chart: {
+        backgroundColor: '#0b0f18',
+        style: { fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial' },
+        events: {
+          load() {
+            try {
+              setChartReady(true);
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+      },
+      title: { text: 'Exchange Rate Dynamics', style: { color: '#d8dee9' } },
+      rangeSelector: {
+        selected: 1, // default '1y'
+        inputEnabled: false,
+        buttons: [
+          { type: 'month', count: 1, text: '1m' },
+          { type: 'year', count: 1, text: '1y' },
+          { type: 'year', count: 5, text: '5y' },
+          { type: 'all', text: 'All' }
+        ],
+        buttonTheme: {
+          fill: '#0b0f18',
+          style: { color: '#cbd5e1' },
+          states: { hover: { fill: '#121826' }, select: { fill: '#1f2937' } }
+        }
+      },
+      navigator: { enabled: true, adaptToUpdatedData: true },
+      scrollbar: { enabled: true },
+      tooltip: {
+        split: false,
+        shared: true,
+        valueDecimals: 6,
+        backgroundColor: 'rgba(8,10,14,0.9)',
+        style: { color: '#e6eef8' }
+      },
+      xAxis: {
+        labels: { style: { color: '#cbd5e1' } },
+        ordinal: false // Keep exact daily ticks
+      },
+      yAxis: {
+        opposite: false,
+        labels: { style: { color: '#cbd5e1' } }
+      },
+      legend: { enabled: true, itemStyle: { color: '#cbd5e1' } },
+      plotOptions: {
+        series: {
+          turboThreshold: 0,
+          marker: { enabled: false }
+        }
+      },
+      series: [
+        { name: 'Buy', data: [], tooltip: { valueDecimals: 6 }, color: '#28c76f' },
+        { name: 'Sell', data: [], tooltip: { valueDecimals: 6 }, color: '#ff6b6b' }
+      ],
+      credits: { enabled: false },
+      time: { useUTC: true }
+    };
+  }, []);
+
+  // Apply a simple dark theme to Highcharts globally once
+  useEffect(() => {
+    Highcharts.setOptions({
+      colors: ['#28c76f', '#ff6b6b', '#6c8cff', '#f6c85f'],
+      chart: { backgroundColor: '#0b0f18', style: { color: '#cbd5e1' } },
+      title: { style: { color: '#e6eef8' } },
+      subtitle: { style: { color: '#e6eef8' } },
+      xAxis: { gridLineColor: '#1f2937', labels: { style: { color: '#cbd5e1' } } },
+      yAxis: { gridLineColor: '#1f2937', labels: { style: { color: '#cbd5e1' } } },
+      legend: { itemStyle: { color: '#cbd5e1' } }
+    });
+  }, []);
+
+  // -----------------------------------------------------------
+  // Attach afterSetExtremes to xAxis after chart is created
+  // -----------------------------------------------------------
+  useEffect(() => {
+    const chart = chartRef.current?.chart;
+    if (!chart) return;
+    try {
+      const xAxis = chart.xAxis && chart.xAxis[0];
+      if (xAxis) {
+        xAxis.update({
+          events: {
+            afterSetExtremes: function (e) {
+              afterSetExtremes(e);
+            }
+          }
+        }, false);
+      }
+    } catch (e) {
+      console.warn('Failed to attach afterSetExtremes', e);
+    }
+  }, [afterSetExtremes, chartReady]);
+
+  // -----------------------------------------------------------
+  // On pair change: ensure caches + timeline; but DON'T force axis resets
+  // We will populate data for default 1y window (initial only if chart is ready)
+  // -----------------------------------------------------------
+  useEffect(() => {
+    if (!fromId || !toId) return;
+    (async () => {
+      setLoading(true);
+      try {
+        await ensureCurrencyCached(fromId);
+        await ensureCurrencyCached(toId);
+        await buildFullTimeline(fromId, toId);
+
+        // If chart is ready, populate initial 1y view
+        if (chartReady) {
+          // Compute default 1y window
+          const end = new Date();
+          const start = new Date(end);
+          start.setFullYear(end.getFullYear() - 1);
+          const rangeStartUTC = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+          const rangeEndUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+
+          await buildSeriesFromCache(fromId, toId, rangeStartUTC, rangeEndUTC);
+
+          const chart = chartRef.current?.chart;
+          if (chart && chart.xAxis && chart.xAxis[0] && chart.rangeSelector) {
+            chart.xAxis[0].setExtremes(null, null, false);
+            chart.rangeSelector.clickButton(1);
+            logDebug('Forced chart range reset to 1y after pair change.');
+          }
+        }
+      } catch (e) {
+        logDebug('pair change error: ' + (e && e.message ? e.message : e));
       } finally {
         setLoading(false);
       }
-    }, [fetchRates]);
+    });
+  }, [fromId, toId, buildFullTimeline, ensureCurrencyCached, buildSeriesFromCache, chartReady, logDebug]);
 
-    useEffect(() => {
-      if (fromId && toId) buildChart(fromId, toId);
-    }, [fromId, toId, buildChart]);
+  useEffect(() => {
+    if (!chartReady) return;
+    if (!fromId || !toId) return;
 
-    const headline = useMemo(() => {
-      const f = currencies.find((c) => c.Id === fromId)?.CurrencyCode || '—';
-      const t = currencies.find((c) => c.Id === toId)?.CurrencyCode || '—';
-      return `${f} → ${t}`;
-    }, [fromId, toId, currencies]);
-
-    const chartData = useMemo(() => {
-      if (!chart.labels || chart.labels.length === 0) return { labels: [], datasets: [] };
-      const datasets = [];
-      if (mode === 'buy') {
-        datasets.push({ label: 'Buy', data: chart.buyValues.map((v, i) => ({ x: chart.labels[i], y: v })), borderColor: '#28c76f', backgroundColor: 'rgba(40,199,111,0.12)', tension: 0.12, pointRadius: 2 });
-      } else if (mode === 'sell') {
-        datasets.push({ label: 'Sell', data: chart.sellValues.map((v, i) => ({ x: chart.labels[i], y: v })), borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.12)', tension: 0.12, pointRadius: 2 });
-      } else if (mode === 'mix') {
-        datasets.push({ label: 'Buy', data: chart.buyValues.map((v, i) => ({ x: chart.labels[i], y: v })), borderColor: '#28c76f', backgroundColor: 'rgba(40,199,111,0.08)', tension: 0.12, pointRadius: 1 });
-        datasets.push({ label: 'Sell', data: chart.sellValues.map((v, i) => ({ x: chart.labels[i], y: v })), borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.08)', tension: 0.12, pointRadius: 1 });
-      } //else if (mode === 'mid') {
-      //   datasets.push({ label: 'Mid', data: chart.midValues.map((v, i) => ({ x: chart.labels[i], y: v })), borderColor: '#6c8cff', backgroundColor: 'rgba(108,140,255,0.12)', tension: 0.12, pointRadius: 2 });
-      // }
-      return { labels: chart.labels, datasets };
-    }, [chart, mode]);
-
-    const options = useMemo(() => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top' },
-        tooltip: {
-          mode: 'index',
-          intersect: false,
-        callbacks: {
-
-          // Make the title callback resilient to different shapes of the x value
-          title: (items) => {
-            if (!items || items.length === 0) return '';
-            const it = items[0];
-            
-            // Possible places where x can appear depending on data format / chartjs version
-            const rawX = it?.parsed?.x ?? it?.raw?.x ?? it?.element?.$context?.parsed?.x ?? it?.label ?? it?.parsed;
-            let d = null;
-            if (rawX instanceof Date) d = rawX;
-            else if (typeof rawX === 'number' || typeof rawX === 'string') d = new Date(rawX);
-            
-            
-            // fallback, try to read dataset value's x
-            else if (it?.dataset && it.dataset.data && it.dataset.data[it.index]) {
-              const maybe = it.dataset.data[it.index];
-              const cand = maybe?.x ?? maybe;
-              if (cand instanceof Date) d = cand;
-              else if (typeof cand === 'number' || typeof cand === 'string') d = new Date(cand);
-            }
-            if (!d || Number.isNaN(d.getTime())) return '';
-            return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-          },
-          label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw.y ?? ctx.raw).toFixed(6)}`,
-        },
-        },
-      },
-      scales: {
-        x: { type: 'time', time: { unit: 'day', tooltipFormat: 'PPP' }, ticks: { maxRotation: 0, minRotation: 0 } },
-        y: { beginAtZero: false },
-      },
-      interaction: { mode: 'nearest', axis: 'x', intersect: false },
-    }), []);
-
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
-    const { user, logout } = useAuth();
-
-
-    // Auth state is provided by AuthContext (no local fetch needed here)
-
-    const handleLogout = async () => {
-      try {
-        await logout();
-      } catch (e) {
-        console.warn('Logout failed', e);
+    (async () => {
+      // Ensure timeline exists
+      if (!fullTimelineRef.current || fullTimelineRef.current.length === 0) {
+        await buildFullTimeline(fromId, toId);
       }
-      setUserMenuOpen(false);
+      if (!fullTimelineRef.current || fullTimelineRef.current.length === 0) return; // If still empty, abort
+
+      // Compute default 1y window
+      const end = new Date();
+      const start = new Date(end);
+      start.setFullYear(end.getFullYear() - 1);
+      await buildSeriesFromCache(fromId, toId, Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()), Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()));
+      initialPopulatedRef.current = true;
+    })();
+  }, [chartReady, fromId, toId, buildFullTimeline, buildSeriesFromCache]);
+
+
+  // Recompute latest rates when pair/caches/timeline update
+  useEffect(() => {
+    if (!fromId || !toId) { setLatestRates(null); return; }
+
+    const tryChartThenCompute = async () => {
+      // Prefer reading last computed values from the chart series if available
+      const chart = chartRef.current?.chart;
+      if (chart && chart.series && chart.series.length >= 2) {
+        try {
+          const buySeries = chart.series.find(s => s.name === 'Buy') || chart.series[0];
+          const sellSeries = chart.series.find(s => s.name === 'Sell') || chart.series[1];
+
+          // Find last non-null point (largest x) in each series
+          const lastPoint = (series) => {
+            if (!series || !series.data || series.data.length === 0) return null;
+            for (let i = series.data.length - 1; i >= 0; i--) {
+              const p = series.data[i];
+              if (p && p.y != null && !Number.isNaN(p.y)) return p;
+            }
+            return null;
+          };
+
+          const pb = lastPoint(buySeries);
+          const ps = lastPoint(sellSeries);
+
+          // Prefer when both series have a point with same x (same date)
+          if (pb && ps && pb.x === ps.x) {
+            setLatestRates({ buy: Number(pb.y), sell: Number(ps.y), ts: pb.x });
+            return;
+          }
+
+          // Otherwise fall back to best-available: prefer latest common timestamp, else pb.ts or ps.ts
+          if (pb && ps) {
+            const ts = Math.max(pb.x, ps.x);
+            const buyVal = pb.x === ts ? Number(pb.y) : null;
+            const sellVal = ps.x === ts ? Number(ps.y) : null;
+            setLatestRates({ buy: buyVal, sell: sellVal, ts });
+            return;
+          }
+
+          if (pb) { setLatestRates({ buy: Number(pb.y), sell: null, ts: pb.x }); return; }
+          if (ps) { setLatestRates({ buy: null, sell: Number(ps.y), ts: ps.x }); return; }
+        } catch (e) {
+          logDebug('Reading latest from chart failed: ' + (e && e.message ? e.message : e));
+        }
+      }
+
+      
+      await computeLatestRates(fromId, toId); // Fallback: compute from cache/timeline
     };
 
-    return (
-      <div className="home-container">
-        <header className="topbar">
-          <div className="brand">Exchange Explorer</div>
-          <div className="top-actions">
-            {/* If we have a logged-in user or not */}
-            {user ? (
-              <div className="user-block">
-                <span className="user-label"><strong>{`${user.FirstName || ''} ${user.LastName || ''}`.trim()}</strong></span>
-                <button className="btn-link" onClick={() => setUserMenuOpen((s) => !s)} aria-expanded={userMenuOpen}>▾</button>
-                {userMenuOpen && (
-                  <div className="user-menu">
-                    <button className="btn-plain" onClick={handleLogout}>Logout</button>
-                  </div>
-                )}
+    tryChartThenCompute();
+  }, [fromId, toId, computeLatestRates]);
+
+
+  
+  // Update series visibility based on mode
+  useEffect(() => {
+    const chart = chartRef.current?.chart;
+    if (!chart || !chart.series) return;
+    try {
+      if (mode === 'buy') {
+        chart.series.forEach(s => s.name === 'Buy' ? s.show() : s.hide());
+      } else if (mode === 'sell') {
+        chart.series.forEach(s => s.name === 'Sell' ? s.show() : s.hide());
+      } else { // mix
+        chart.series.forEach(s => s.show());
+      }
+    } catch (e) {
+      console.warn('Failed to update series visibility', e);
+    }
+  }, [mode]);
+
+  return (
+    <div className="home-container">
+      <Header />
+
+      <main className="main-card wide">
+        <section className="controls">
+          <div className="headline controls-head">{ (currencies.find(c => c.Id === fromId)?.CurrencyCode || '—') + ' → ' + (currencies.find(c => c.Id === toId)?.CurrencyCode || '—') }</div>
+          <div className="select-row">
+            <label>
+              From
+              <select value={fromId || ''} onChange={(e) => setFromId(Number(e.target.value))}>
+                {currencies.map((c) => (<option key={c.Id} value={c.Id}>{c.CurrencyCode}</option>))}
+              </select>
+            </label>
+
+            <label>
+              To
+              <select value={toId || ''} onChange={(e) => setToId(Number(e.target.value))}>
+                {currencies.map((c) => (<option key={c.Id + '-to'} value={c.Id}>{c.CurrencyCode}</option>))}
+              </select>
+            </label>
+
+            <div className="mode-control">
+              <label className={`mode-btn ${mode === 'buy' ? 'active' : ''}`} onClick={() => setMode('buy')}>Buy</label>
+              <label className={`mode-btn ${mode === 'sell' ? 'active' : ''}`} onClick={() => setMode('sell')}>Sell</label>
+              <label className={`mode-btn ${mode === 'mix' ? 'active' : ''}`} onClick={() => setMode('mix')}>Mix</label>
+            </div>
+          </div>
+        </section>
+
+        <section className="chart-card">
+          <div className="chart-header">
+            <h3>Exchange Rate Dynamics</h3>
+            <div className="chart-sub">Daily data · hover for details</div>
+          </div>
+
+          <div className="chart-area" style={{ minHeight: 420, position: 'relative' }}>
+            <HighchartsReact
+              highcharts={Highcharts}
+              constructorType={'stockChart'}
+              options={chartOptions}
+              ref={chartRef}
+            />
+            {loading && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(11,15,24,0.72)', color: '#e6eef8', zIndex: 10 }}>
+                Loading...
               </div>
-            ) : (
-              <button className="btn-primary" onClick={() => navigate('/login')}>
-                Login
-              </button>
             )}
           </div>
-        </header>
 
-        <main className="main-card wide">
-          <section className="controls">
-            <div className="headline controls-head">{headline}</div>
-            <div className="select-row">
-              <label>
-                From
-                <select value={fromId || ''} onChange={(e) => setFromId(Number(e.target.value))}>
-                  {currencies.map((c) => (
-                    <option key={c.Id} value={c.Id}>{c.CurrencyCode}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                To
-                <select value={toId || ''} onChange={(e) => setToId(Number(e.target.value))}>
-                  {currencies.map((c) => (
-                    <option key={c.Id + '-to'} value={c.Id}>{c.CurrencyCode}</option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="mode-control">
-                {/* <label className={`mode-btn ${mode === 'mid' ? 'active' : ''}`} onClick={() => setMode('mid')}>Mid</label> */}
-                <label className={`mode-btn ${mode === 'buy' ? 'active' : ''}`} onClick={() => setMode('buy')}>Buy</label>
-                <label className={`mode-btn ${mode === 'sell' ? 'active' : ''}`} onClick={() => setMode('sell')}>Sell</label>
-                <label className={`mode-btn ${mode === 'mix' ? 'active' : ''}`} onClick={() => setMode('mix')}>Mix</label>
-              </div>
-            </div>
-          </section>
-
-          <section className="chart-card">
-            <div className="chart-header">
-              <h3>Exchange Rate Dynamics</h3>
-              <div className="chart-sub">Daily data · hover for details</div>
+          {/* Latest buy/sell currency point */}
+          <div className="latest-currency-points">
+            <div className="currency-point-card">
+              <div className="label">Buy</div>
+              <div className="value">{latestRates ? (Number.isFinite(latestRates.buy) ? latestRates.buy.toFixed(6) : '—') : '—'}</div>
+              <div className="date">{latestRates ? new Date(latestRates.ts).toLocaleDateString() : ''}</div>
             </div>
 
-            <div className="chart-area">
-              {loading ? (
-                <div>Loading...</div>
-              ) : chart.labels && chart.labels.length ? (
-                <div style={{ height: 420 }}>
-                  <Line data={chartData} options={options} />
-                </div>
-              ) : (
-                <div>No data for the selected pair</div>
-              )}
+            <div className="currency-point-card">
+              <div className="label">Sell</div>
+              <div className="value">{latestRates ? (Number.isFinite(latestRates.sell) ? latestRates.sell.toFixed(6) : '—') : '—'}</div>
+              <div className="date">{latestRates ? new Date(latestRates.ts).toLocaleDateString() : ''}</div>
             </div>
 
-            <div className="chart-legend">
-              <div>Pair: <strong>{headline}</strong></div>
-              <div className="mini-stats">Points: {chart.labels?.length ?? 0}</div>
-            </div>
-            {error && <div className="error">{error}</div>}
-          </section>
-        </main>
-      </div>
-    );
-  }
+            {/* <div className="currency-point-note">{latestRates ? `Last data: ${new Date(latestRates.ts).toLocaleString()}` : 'No recent data available'}</div> */}
+          </div>
+          
+
+          {/* <div className="chart-legend">
+            <div>Pair: <strong>{ (currencies.find(c => c.Id === fromId)?.CurrencyCode || '—') + ' → ' + (currencies.find(c => c.Id === toId)?.CurrencyCode || '—') }</strong></div>
+            <div className="mini-stats">See points in the navigator & use range selector</div>
+          </div> */}
+          {error && <div className="error">{error}</div>}
+        </section>
+        <RateConverter currencies={currencies} /> 
+      </main>
+    </div>
+  );
+}

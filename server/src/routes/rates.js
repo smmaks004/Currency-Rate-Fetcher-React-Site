@@ -22,7 +22,7 @@ router.get('/:currencyId', async (req, res) => {
 
     try {
       const sql = `
-        SELECT cr.Date as Date, cr.ExchangeRate as ExchangeRate, cr.MarginId as MarginId, m.MarginValue as MarginValue
+        SELECT cr.Id as Id, cr.Date as Date, cr.ExchangeRate as ExchangeRate, cr.MarginId as MarginId, m.MarginValue as MarginValue
         FROM CurrencyRates cr
         LEFT JOIN Margins m ON cr.MarginId = m.Id
         WHERE cr.ToCurrencyId = ?
@@ -32,6 +32,7 @@ router.get('/:currencyId', async (req, res) => {
       return res.json(rows);
     } catch (err) {
       console.error(err);
+
       return res.status(500).json({ error: 'DB error' });
     }
 });

@@ -4,7 +4,9 @@ import Login from './components/Login';
 import PublicRoute from './components/PublicRoute';
 import Home from './components/Home';
 import PrivateRoute from './components/PrivateRoute'; ///
-import AdminPage from './components/AdminPage';       ///
+// import AdminPage from './components/AdminPage';       ///
+import Profile from './components/Profile';
+import CurrencyManagement from './components/currencies_management/CurrencyManagement';
 import './App.css';
 
 import { AuthProvider } from './components/AuthContext'; ///
@@ -21,13 +23,20 @@ function App() {
             </PublicRoute>
           } />
 
+
           <Route path="/" element={<Home />} />
 
 
-          {/* !!!! Example protected route: only Admin role can access /admin */}
-          <Route path="/admin" element={
-            <PrivateRoute allowedRoles={[ 'admin' ]}>
-              <AdminPage />
+          <Route path="/currencies_management" element={
+            <PrivateRoute>
+              <CurrencyManagement />
+            </PrivateRoute>
+          } />
+
+
+          <Route path="/profile" element={
+            <PrivateRoute>
+              <Profile />
             </PrivateRoute>
           } />
 

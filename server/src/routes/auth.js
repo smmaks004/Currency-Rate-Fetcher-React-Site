@@ -7,10 +7,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 const JWT_SECRET = process.env.JWT_SECRET
 
-// Special email allowed to bypass password check in development (set BYPASS_EMAIL env to enable)
-const BYPASS_EMAIL = process.env.BYPASS_EMAIL;
-
-// Helper: sign token
+// Sign token
 function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' }); // token lifetime — 1 day
 }
@@ -29,17 +26,11 @@ router.post('/login', async (req, res) => {
 
     let ok = false;
 
-    // BYPASS_EMAIL: allow login for this email (dev) without password check || JUST FOR TESTING
-    if (email && email.toLowerCase() === BYPASS_EMAIL.toLowerCase()) {
-      console.warn('Auth bypass used for', email);
-      ok = true;
+    const hash = user.PasswordHash || '';
+    if (typeof hash === 'string' && (hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$'))) {
+      ok = await bcrypt.compare(password || '', hash);
     } else {
-      const hash = user.PasswordHash || '';
-      if (typeof hash === 'string' && (hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$'))) {
-        ok = await bcrypt.compare(password || '', hash);
-      } else {
-        ok = password === hash;
-      }
+      ok = password === hash;
     }
 
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
@@ -133,7 +124,29 @@ router.get('/me', async (req, res) => {
   }
 
 
+});
 
+
+
+
+
+// POST /api/auth/change-password
+// Protected: change current user's password (hashes using bcrypt)
+router.post('/change-password', protect, async (req, res) => {
+  const { password } = req.body || {};
+  const userId = req.user && req.user.id;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  if (!password) return res.status(400).json({ error: 'Password required' });
+
+  try {
+    const saltRounds = 10;
+    const hash = await bcrypt.hash(password, saltRounds);
+    await pool.query('UPDATE Users SET PasswordHash = ? WHERE Id = ?', [hash, userId]);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/auth/change-password failed', err);
+    res.status(500).json({ error: 'Password update failed' });
+  }
 });
 
 module.exports = router;

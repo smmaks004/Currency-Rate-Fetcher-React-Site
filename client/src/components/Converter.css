@@ -1,0 +1,135 @@
+.converter-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid #12202b;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 6px 30px rgba(9,12,20,0.6);
+  color: #cbd5e1;
+  
+  margin: 16px auto 0;
+  width: min(100%, 920px);
+  align-self: center;
+}
+
+
+.converter-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center; /**/
+  flex-wrap: wrap;
+}
+
+
+
+.conv-select, .conv-input, .conv-btn {
+  background: #0b1220;
+  color: #cbd5e1;
+  border: 1px solid #1f2937;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.conv-small-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.conv-result {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #e6eef8;
+}
+
+
+.conv-input {
+  min-width: 140px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #22303a;
+  background: #071026;
+  color: #cbd5e1;
+}
+.conv-select {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #22303a;
+  background: #071026;
+  color: #cbd5e1;
+}
+.conv-small-btn.active {
+  background: #21333f;
+  border-color: #2d5568;
+}
+.converter-card .conv-mode .conv-small-btn {
+  margin-right: 6px;
+}
+.converter-card .conv-mode .conv-small-btn:last-child {
+  margin-right: 0;
+}
+.converter-card .conv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.converter-card .conv-header h3 { margin: 0 0 18px 0; }
+
+/* Label styles for converter fields */
+.conv-label { font-weight: 600; color: #cbd5e1; }
+
+/* Active input highlight */
+.main-field-active { border-color: #6c8cff; box-shadow: 0 6px 18px rgba(108,140,255,0.06); background: #071026; color: #e6eef8 }
+
+/* Hide native number input spinners */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+
+
+/* DatePicker input */
+.date-picker-input {
+  min-width: 160px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 48, 58, 0.6);
+  background: linear-gradient(180deg, #071026 0%, #081426 100%);
+  color: #e6eef8;
+  box-shadow: none;
+  transition: box-shadow 150ms ease, border-color 150ms ease, transform 80ms ease;
+}
+.date-picker-input:focus,
+.date-picker-input:active {
+  outline: none;
+  border-color: #6c8cff;
+  box-shadow: 0 6px 18px rgba(108,140,255,0.08), 0 2px 6px rgba(108,140,255,0.06);
+  transform: translateY(-1px);
+}
+
+/* Helper layout classes to replace inline JSX styles */
+.conv-col { display: flex; flex-direction: column; }
+.conv-swap { display: flex; align-items: center; margin-top: 18px; }
+.conv-row-between {
+  margin-top: 15px;
+  justify-content: center;
+  gap: 18px;
+}
+.conv-date-wrap { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+}
+.conv-loading { font-size: 12px; color: #6c8cff; }
+.conv-result-block { 
+  margin-top: 15px; 
+  border-top: 1px solid #1f2937; 
+  padding-top: 10px; 
+}
+.conv-result-center { text-align: center; }
+.conv-result-rate { font-size: 12px; color: #9aa8b8; }
+.conv-result-date { font-size: 11px; color: #93a4b8; margin-top: 4px; }
+.conv-result-title { font-size: 18px; margin-bottom: 5px; }
+.conv-error { color: #ff6b6b; }
+
+/* Hide spinner */
+input[type=number] { appearance: textfield; -moz-appearance: textfield; }

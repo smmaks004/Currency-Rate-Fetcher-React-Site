@@ -1,0 +1,125 @@
+/* --------------------- Layout --------------------- */
+.profile-card {
+    max-width: 900px;
+    margin-top: 40px;
+    position: relative;
+}
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.profile-header h2 {
+    margin: 0;
+}
+.profile-body {
+    margin-top: 18px;
+    padding: 16px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+}
+
+
+/* --------------------- Grid --------------------- */
+.profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.profile-read {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+/* Password form grid */
+.pw-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+
+/* --------------------- Fields & Labels --------------------- */
+.profile-label {
+    font-size: 12px;
+    color: #cfe1ff;
+    margin-bottom: 6px;
+}
+.profile-value {
+    margin-left: 8px;
+}
+.profile-role {
+    margin-top: 6px;
+    color: #a6b8d9;
+}
+.profile-field {
+    display: block;
+}
+
+
+/* --------------------- Inputs --------------------- */
+.input-small {
+    width: 100%;
+    max-width: 360px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02);
+}
+.input-medium {
+    width: 100%;
+    max-width: 560px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02);
+}
+
+
+/* --------------------- Controls --------------------- */
+.profile-controls {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}
+.btn-row {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}
+
+.pw-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+
+/* --------------------- Messages --------------------- */
+.message {
+    margin-top: 10px;
+}
+
+/* Message modifiers for success / error */
+.message--error {
+    color: #ff6b6b;
+}
+.message--success {
+    color: #28c76f;
+}
+
+/* Small message shown next to password buttons */
+.pw-message {
+    align-self: center;
+}
+
+/* Utility to make a field span full grid width */
+.full-width {
+    grid-column: 1 / -1;
+}
