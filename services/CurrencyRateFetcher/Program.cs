@@ -60,7 +60,7 @@ class Program
 
             if (lastRate == null)
             {
-                DateOnly defaultStart = new DateOnly(2024, 1, 1);
+                DateOnly defaultStart = new DateOnly(2000, 1, 1);
                 Log.Information("Database is empty. Fetching range from default date.");
 
                 apiUrl = $"https://api.frankfurter.dev/v1/{defaultStart:yyyy-MM-dd}..{today:yyyy-MM-dd}?base=EUR";

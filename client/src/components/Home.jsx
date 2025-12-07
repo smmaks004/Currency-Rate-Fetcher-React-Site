@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import Highcharts from 'highcharts/highstock';
 import HighchartsReact from 'highcharts-react-official';
 
+import 'highcharts/highcharts-more'; 
+
 import RateConverter from './Converter';
 import './Home.css';
 import Header from './Header';
@@ -420,60 +422,150 @@ export default function Home() {
     return {
       chart: {
         backgroundColor: '#0b0f18',
-        style: { fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial' },
+        style: { fontFamily: 'Inter, system-ui, -apple-system, sans-serif' },
+        // Add a bit more left padding so Y-axis labels never overlap the plot
+        spacingLeft: 10,
         events: {
           load() {
-            try {
-              setChartReady(true);
-            } catch (e) {
-              // ignore
-            }
+            try { setChartReady(true); } catch (e) {}
           }
         }
       },
-      title: { text: 'Exchange Rate Dynamics', style: { color: '#d8dee9' } },
+      title: { text: 'Exchange Rate Dynamics', style: { color: '#e2e8f0', fontSize: '16px' }, align: 'left' },
+      
       rangeSelector: {
-        selected: 1, // default '1y'
+        selected: 4, // Default to the "All" button
         inputEnabled: false,
-        buttons: [
-          { type: 'month', count: 1, text: '1m' },
-          { type: 'year', count: 1, text: '1y' },
-          { type: 'year', count: 5, text: '5y' },
-          { type: 'all', text: 'All' }
-        ],
         buttonTheme: {
-          fill: '#0b0f18',
-          style: { color: '#cbd5e1' },
-          states: { hover: { fill: '#121826' }, select: { fill: '#1f2937' } }
-        }
+          fill: 'rgba(255,255,255,0.05)',
+          stroke: 'none',
+          'stroke-width': 0,
+          r: 8,
+          style: { color: '#cbd5e1', fontWeight: '500' },
+          states: {
+            hover: { fill: '#1e293b', style: { color: '#fff' } },
+            select: { fill: '#3b82f6', style: { color: '#fff' } } // Highlighted button when selected
+          }
+        },
+        buttons: [
+          { type: 'month', count: 1, text: '1M' },
+          { type: 'year', count: 1, text: '1Y' },
+          { type: 'year', count: 5, text: '5Y' },
+          { type: 'all', text: 'All' }
+        ]
       },
-      navigator: { enabled: true, adaptToUpdatedData: true },
-      scrollbar: { enabled: true },
+
+      navigator: {
+        enabled: true,
+        height: 30,
+        maskFill: 'rgba(59, 130, 246, 0.2)', // Blue selection mask
+        series: { color: '#3b82f6', lineWidth: 1, fillOpacity: 0.1 },
+        xAxis: { labels: { style: { color: '#94a3b8' } } }
+      },
+
+      scrollbar: { enabled: false }, // Hide scrollbar; navigator is enough
+
       tooltip: {
-        split: false,
         shared: true,
-        valueDecimals: 6,
-        backgroundColor: 'rgba(8,10,14,0.9)',
-        style: { color: '#e6eef8' }
+        split: false,
+        borderRadius: 12,
+        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        borderWidth: 0,
+        shadow: true,
+        style: { color: '#f8fafc' },
+        headerFormat: '<span style="font-size: 12px; color: #94a3b8">{point.key}</span><br/>',
+        pointFormat: '<span style="color:{point.color}">●</span> {series.name}: <b>{point.y}</b><br/>',
+        valueDecimals: 4 
       },
+
       xAxis: {
-        labels: { style: { color: '#cbd5e1' } },
-        ordinal: false // Keep exact daily ticks
+        gridLineWidth: 0,
+        lineWidth: 0,
+        tickWidth: 0,
+        labels: { style: { color: '#64748b' }, y: 20 }, // Push date labels slightly down
+        ordinal: false,
+        events: { afterSetExtremes: (e) => afterSetExtremes(e) }
       },
+
       yAxis: {
-        opposite: false,
-        labels: { style: { color: '#cbd5e1' } }
+        opposite: false, // Axis on the left
+        gridLineColor: '#1e293b',
+        gridLineDashStyle: 'Dash', // Dashed grid lines
+        labels: { style: { color: '#64748b' }, x: -10 },
+
+        // Key for spacing/scale
+        startOnTick: false, 
+        endOnTick: false,
+        maxPadding: 0.02, // Minimal top padding
+        minPadding: 0.02, // Minimal bottom padding
       },
-      legend: { enabled: true, itemStyle: { color: '#cbd5e1' } },
+
       plotOptions: {
         series: {
-          turboThreshold: 0,
-          marker: { enabled: false }
+          // Key for smoothing on large zooms
+          dataGrouping: {
+            enabled: true,
+            forced: true, // Force grouping at deep zoom levels
+            approximation: 'average', // Average values when grouped
+            groupPixelWidth: 15 // Higher number -> smoother chart
+          },
+          animation: { duration: 600 },
+          marker: { enabled: false, states: { hover: { enabled: true } } }
         }
       },
+
       series: [
-        { name: 'Buy', data: [], tooltip: { valueDecimals: 6 }, color: '#28c76f' },
-        { name: 'Sell', data: [], tooltip: { valueDecimals: 6 }, color: '#ff6b6b' }
+        { 
+          name: 'Buy', 
+          id: 'buy-series', 
+          type: 'areaspline',
+          data: [], 
+          color: '#28c76f',
+          fillColor: {
+            linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+            stops: [[0, 'rgba(34, 197, 94, 0.4)'], [1, 'rgba(34, 197, 94, 0.02)']]
+          },
+          lineWidth: 2,
+          threshold: null
+        },
+        { 
+          name: 'Sell', 
+          id: 'sell-series',
+          type: 'areaspline',
+          data: [], 
+          color: '#ff6b6b', 
+          fillColor: {
+            linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+            stops: [[0, 'rgba(239, 68, 68, 0.4)'], [1, 'rgba(239, 68, 68, 0.02)']]
+          },
+          lineWidth: 2,
+          threshold: null
+        },
+
+        // SPREAD (MIX MODE)
+        {
+          name: 'Spread',
+          id: 'spread-series',
+          type: 'arearange', 
+          data: [],
+          // Keep spread lines thin but make the fill obvious
+          color: '#3b82f6', 
+          lineWidth: 1,
+          fillColor: {
+            linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+            stops: [
+              [0, 'rgba(59, 130, 246, 0.5)'], 
+              [1, 'rgba(59, 130, 246, 0.1)']
+            ]
+          },
+          
+          // Enable grouping for spread as well
+          dataGrouping: { enabled: true, approximation: 'averages' },
+          visible: false,
+          tooltip: {
+            pointFormat: '<span style="color:#3b82f6">●</span> Rate: <b>{point.low} - {point.high}</b><br/>'
+          }
+        }
       ],
       credits: { enabled: false },
       time: { useUTC: true }
@@ -573,6 +665,31 @@ export default function Home() {
       initialPopulatedRef.current = true;
     })();
   }, [chartReady, fromId, toId, buildFullTimeline, buildSeriesFromCache]);
+
+  
+  // When the pair changes, immediately reload the current visible range so the chart updates without requiring a manual range change
+  useEffect(() => {
+    if (!chartReady || !fromId || !toId) return;
+
+    const chart = chartRef.current?.chart;
+    const xAxis = chart?.xAxis && chart.xAxis[0];
+    const min = xAxis?.min;
+    const max = xAxis?.max;
+
+    (async () => {
+      if (Number.isFinite(min) && Number.isFinite(max)) {
+        await loadRangeData(min, max);
+      } else {
+        const end = new Date();
+        const start = new Date(end);
+        start.setFullYear(end.getFullYear() - 1);
+        await loadRangeData(
+          Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()),
+          Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
+        );
+      }
+    })();
+  }, [fromId, toId, chartReady, loadRangeData]);
 
 
   // Recompute latest rates when pair/caches/timeline update

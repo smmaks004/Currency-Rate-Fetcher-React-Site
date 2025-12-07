@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../AuthContext';
 import './CurrencyRatesTable.css';
 
@@ -37,6 +37,7 @@ export default function CurrencyRatesTable() {
   const [currencies, setCurrencies] = useState([]);
   const [ratesByCurrency, setRatesByCurrency] = useState({});
   const [loading, setLoading] = useState(false);
+  const [currenciesLoading, setCurrenciesLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingKey, setEditingKey] = useState(null);
   const [editingValue, setEditingValue] = useState('');
@@ -50,6 +51,7 @@ export default function CurrencyRatesTable() {
   const [pendingTo, setPendingTo] = useState([]);
   const [showToDropdown, setShowToDropdown] = useState(false);
   const [appliedTo, setAppliedTo] = useState(null);
+  const defaultsAppliedRef = useRef(false);
 
   // Max page size
   const pageSize = 20;
@@ -59,6 +61,7 @@ export default function CurrencyRatesTable() {
   // Load currencies
   useEffect(() => {
     let cancelled = false;
+    setCurrenciesLoading(true);
     (async () => {
       try {
         const res = await fetch('http://localhost:4000/api/currencies');
@@ -68,6 +71,8 @@ export default function CurrencyRatesTable() {
         setCurrencies(d || []);
       } catch (e) {
         if (!cancelled) setError('Failed to load currencies');
+      } finally {
+        if (!cancelled) setCurrenciesLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -75,64 +80,83 @@ export default function CurrencyRatesTable() {
 
   // When currencies load, default the selectedFrom to the first currency
   useEffect(() => {
-    if (currencies && currencies.length > 0) {
-      if ((!pendingFrom || pendingFrom.length === 0)) {
-        const first = String(currencies[0].Id);
-        setPendingFrom([first]);
-        setAppliedFrom([first]);
-      }
-    }
+    if (!currencies || currencies.length === 0) return;
+    if (defaultsAppliedRef.current) return;
+
+    const eur = currencies.find(c => (c.CurrencyCode || '').toUpperCase() === 'EUR');
+    const eurId = eur ? String(eur.Id) : String(currencies[0].Id);
+    const allIds = currencies.map(c => String(c.Id));
+
+    setPendingFrom([eurId]);
+    setAppliedFrom([eurId]);
+    setPendingTo(allIds);
+    setAppliedTo(allIds);
+
+    defaultsAppliedRef.current = true;
   }, [currencies]);
 
-  // Load last-known rate for each currency
+  // Load last-known rate for all currencies in one bulk request (fewer network calls)
   useEffect(() => {
     if (!currencies || currencies.length === 0) return;
+
     let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
+
     (async () => {
       try {
-        const out = {};
-        await Promise.all(currencies.map(async (c) => {
-          try {
-            const res = await fetch(`http://localhost:4000/api/rates/${c.Id}`);
-            if (!res.ok) return;
-            const rows = await res.json();
-            if (!rows || rows.length === 0) return;
-            const map = new Map();
-            let latest = null;
-            for (const r of rows) {
-              const dt = parseDate(r.Date);
-              if (!dt) continue;
-              const dateLocal = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
-              const key = formatDateLocal(dateLocal);
-              const entry = { rate: Number(r.ExchangeRate), margin: r.MarginValue != null ? Number(r.MarginValue) : 0, date: dateLocal, id: r.Id };
-              map.set(key, entry);
-              if (!latest || dateLocal.getTime() > latest.dt.getTime()) {
-                latest = { dt: dateLocal, rate: entry.rate, margin: entry.margin };
-              }
-            }
-            if (latest) {
-              out[c.Id] = { last: { rate: latest.rate, margin: latest.margin, date: latest.dt }, map };
-              try { console.debug(`Rates loaded for ${c.CurrencyCode || c.Id}: latest ${formatDateLocal(latest.dt)}`); } catch (e) { }
-            }
-          } catch (e) {
-            // ignore
-          }
-        }));
+        const ids = currencies.map(c => c.Id).join(',');
+        const url = `http://localhost:4000/api/rates/bulk?ids=${encodeURIComponent(ids)}`;
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) throw new Error('Failed to load rates');
+        const payload = await res.json();
         if (cancelled) return;
+
+        const data = (payload && payload.data) ? payload.data : payload;
+        const out = {};
+
+        Object.entries(data || {}).forEach(([currencyId, rows]) => {
+          if (!rows || !Array.isArray(rows) || rows.length === 0) return;
+
+          const map = new Map();
+          let latest = null;
+
+          for (const r of rows) {
+            const dt = parseDate(r.Date);
+            if (!dt) continue;
+            const dateLocal = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+            const key = formatDateLocal(dateLocal);
+            const entry = { rate: Number(r.ExchangeRate), margin: r.MarginValue != null ? Number(r.MarginValue) : 0, date: dateLocal, id: r.Id };
+            map.set(key, entry);
+            if (!latest || dateLocal.getTime() > latest.dt.getTime()) {
+              latest = { dt: dateLocal, rate: entry.rate, margin: entry.margin };
+            }
+          }
+
+          if (latest) {
+            out[currencyId] = { last: { rate: latest.rate, margin: latest.margin, date: latest.dt }, map };
+            try { console.debug(`Rates loaded for ${currencyId}: latest ${formatDateLocal(latest.dt)}`); } catch (e) { /* noop */ }
+          }
+        });
+
         setRatesByCurrency(out);
       } catch (e) {
-        if (!cancelled) setError('Failed to load rates');
+        if (controller.signal.aborted || cancelled) return;
+        setError('Failed to load rates');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [currencies]);
 
-  const buildRows = useCallback(() => {
-    const rows = [];
-    if (!currencies || currencies.length === 0) return rows;
+  const rows = useMemo(() => {
+    const rowsAcc = [];
+    if (!currencies || currencies.length === 0) return rowsAcc;
 
     const dateSet = new Set();
     for (const id of Object.keys(ratesByCurrency)) {
@@ -140,30 +164,32 @@ export default function CurrencyRatesTable() {
       if (!item || !item.map) continue;
       for (const k of item.map.keys()) dateSet.add(k);
     }
-    if (dateSet.size === 0) return rows;
+    if (dateSet.size === 0) return rowsAcc;
 
     const timeline = Array.from(dateSet).sort();
-    const list = currencies.slice();
+
+    const fromList = appliedFrom ? (appliedFrom.length ? currencies.filter(c => appliedFrom.includes(String(c.Id))) : []) : currencies;
+    const toList = appliedTo ? (appliedTo.length ? currencies.filter(c => appliedTo.includes(String(c.Id))) : []) : currencies;
+    if (fromList.length === 0 || toList.length === 0) return rowsAcc;
+
     const lastKnown = {};
+    const activeIds = new Set([
+      ...fromList.map(c => String(c.Id)),
+      ...toList.map(c => String(c.Id))
+    ]);
 
     for (const key of timeline) {
-      for (const c of list) {
+      // Update last-known only for currencies we actually need
+      for (const c of currencies) {
+        if (!activeIds.has(String(c.Id))) continue;
         const item = ratesByCurrency[c.Id];
         if (item && item.map && item.map.has(key)) {
           lastKnown[c.Id] = item.map.get(key);
         }
       }
 
-      for (const from of list) {
-        if (appliedFrom !== null && appliedFrom !== undefined) {
-          if (appliedFrom.length === 0) continue;
-          if (!appliedFrom.includes(String(from.Id))) continue;
-        }
-        for (const to of list) {
-          if (appliedTo !== null && appliedTo !== undefined) {
-            if (appliedTo.length === 0) continue;
-            if (!appliedTo.includes(String(to.Id))) continue;
-          }
+      for (const from of fromList) {
+        for (const to of toList) {
           if (from.Id === to.Id) continue;
           const fromCode = (from.CurrencyCode || '').toUpperCase();
           const toCode = (to.CurrencyCode || '').toUpperCase();
@@ -189,17 +215,15 @@ export default function CurrencyRatesTable() {
           const [yy, mm, dd] = key.split('-').map(Number);
           const date = new Date(yy, mm - 1, dd);
 
-          rows.push({ fromId: from.Id, toId: to.Id, from: fromCode, to: toCode, ecb: Number(ecb), sell: Number(sell), buy: Number(buy), date, dateKey: key, toRateId: toVal && toVal.id ? toVal.id : null, fromRateId: fromVal && fromVal.id ? fromVal.id : null });
+          rowsAcc.push({ fromId: from.Id, toId: to.Id, from: fromCode, to: toCode, ecb: Number(ecb), sell: Number(sell), buy: Number(buy), date, dateKey: key, toRateId: toVal && toVal.id ? toVal.id : null, fromRateId: fromVal && fromVal.id ? fromVal.id : null });
         }
       }
     }
 
-    return rows;
+    return rowsAcc;
   }, [currencies, ratesByCurrency, appliedFrom, appliedTo]);
 
-  const rows = buildRows();
-
-  const sorted = React.useMemo(() => {
+  const sorted = useMemo(() => {
     if (!sortBy) return rows;
     const s = [...rows];
     s.sort((a, b) => {
@@ -219,9 +243,15 @@ export default function CurrencyRatesTable() {
     return s;
   }, [rows, sortBy, sortDir]);
 
+  const isLoading = currenciesLoading || loading;
+
   const total = sorted.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const pageRows = sorted.slice((page - 1) * pageSize, page * pageSize);
+  const pageRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    const end = page * pageSize;
+    return sorted.slice(start, end);
+  }, [sorted, page, pageSize]);
 
   const getCurrencyById = (id) => {
     return currencies.find(c => String(c.Id) === String(id)) || null;
@@ -414,6 +444,12 @@ export default function CurrencyRatesTable() {
       </div>
 
       <div className="table-wrapper">
+        {isLoading && (
+          <div className="table-loading">
+            <div className="spinner" aria-hidden="true" />
+            <span>Loading data...</span>
+          </div>
+        )}
         <table className="curr-table">
           <thead>
             <tr>
@@ -484,7 +520,7 @@ export default function CurrencyRatesTable() {
                                 title="Edit ECB"
 
                                 // Just miroring pencil
-                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', transform: 'scaleX(-1)', display: 'inline-block' }}
+                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', transform: 'scaleX(-1)', display: 'inline-block', paddingBottom: 0, paddingTop: 0 }}
                               >✎</button>
                           ) : null }
                         </>
@@ -497,7 +533,7 @@ export default function CurrencyRatesTable() {
                   <td>{formatDateLocal(r.date)}</td>
                 </tr>
             ))}
-            {pageRows.length === 0 && (
+            {pageRows.length === 0 && !isLoading && (
               <tr><td colSpan={6} className="no-data-cell">No data available.</td></tr>
             )}
           </tbody>

@@ -43,6 +43,7 @@ function readVisibleTable() {
 export default function ExportTable({ rows: propRows, headers: propHeaders, filename: propFilename }) {
   const [format, setFormat] = useState('csv');
   const [filename, setFilename] = useState(propFilename || 'currency_export');
+  const [isExporting, setIsExporting] = useState(false);
   
   // New state to store the generated PDF URL
   const [pdfUrl, setPdfUrl] = useState(null);
@@ -76,77 +77,87 @@ export default function ExportTable({ rows: propRows, headers: propHeaders, file
   };
 
   const handleAction = () => {
-    // Collect data
-    let headers = [];
-    let rows = [];
+    if (isExporting) return;
+    setIsExporting(true);
 
-    if (propRows && Array.isArray(propRows) && propRows.length > 0) {
-      headers = makeHeaders(propHeaders);
-      rows = propRows.map(formatRowToCells);
-    } else {
-      const dom = readVisibleTable();
-      headers = makeHeaders(dom.headers);
-      rows = dom.rows;
-    }
+    // Defer heavy work to next tick so the overlay paints first
+    setTimeout(() => {
+      try {
+        // Collect data
+        let headers = [];
+        let rows = [];
 
-    if (!headers.length || !rows.length) {
-      alert('Table not found or empty.');
-      return;
-    }
+        if (propRows && Array.isArray(propRows) && propRows.length > 0) {
+          headers = makeHeaders(propHeaders);
+          rows = propRows.map(formatRowToCells);
+        } else {
+          const dom = readVisibleTable();
+          headers = makeHeaders(dom.headers);
+          rows = dom.rows;
+        }
 
-    // Format-specific logic
-    if (format === 'csv') {
-      const csv = toCsvLines(headers, rows);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      downloadBlob(blob, filename + '.csv');
-      setShowPdfViewer(false);
-      return;
-    }
+        if (!headers.length || !rows.length) {
+          alert('Table not found or empty.');
+          return;
+        }
 
-    
-    if (format === 'xlsx') {
-      const aoa = [headers, ...rows];
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      downloadBlob(blob, filename + '.xlsx');
-      setShowPdfViewer(false);
-      return;
-    }
+        // Format-specific logic
+        if (format === 'csv') {
+          const csv = toCsvLines(headers, rows);
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          downloadBlob(blob, filename + '.csv');
+          setShowPdfViewer(false);
+          return;
+        }
+
+        
+        if (format === 'xlsx') {
+          const aoa = [headers, ...rows];
+          const ws = XLSX.utils.aoa_to_sheet(aoa);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+          const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+          const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          downloadBlob(blob, filename + '.xlsx');
+          setShowPdfViewer(false);
+          return;
+        }
 
 
-    if (format === 'pdf') {
-      /* GENERATE REAL PDF */
-      const doc = new jsPDF();
+        if (format === 'pdf') {
+          /* GENERATE REAL PDF */
+          const doc = new jsPDF();
 
-      // Add title (centered on page)
-      const pageWidth = (doc.internal.pageSize && typeof doc.internal.pageSize.getWidth === 'function')
-        ? doc.internal.pageSize.getWidth()
-        : doc.internal.pageSize.width;
-      doc.setFontSize(20);
-      try { doc.setFont(undefined, 'bold'); } catch (e) { 
-        try { doc.setFontStyle && doc.setFontStyle('bold'); } catch (e) { /* ignore */ } 
+          // Add title (centered on page)
+          const pageWidth = (doc.internal.pageSize && typeof doc.internal.pageSize.getWidth === 'function')
+            ? doc.internal.pageSize.getWidth()
+            : doc.internal.pageSize.width;
+          doc.setFontSize(20);
+          try { doc.setFont(undefined, 'bold'); } catch (e) { 
+            try { doc.setFontStyle && doc.setFontStyle('bold'); } catch (e) { /* ignore */ } 
+          }
+          doc.text("Report", pageWidth / 2, 18, { align: 'center' });
+
+
+          // Generate table inside PDF
+          autoTable(doc, {
+            head: [headers],
+            body: rows,
+            startY: 30,
+            theme: 'grid', // Table style (grid, striped, plain)
+            styles: { fontSize: 10 },
+          });
+
+          const blob = doc.output('blob');
+          const url = URL.createObjectURL(blob);
+          
+          setPdfUrl(url);
+          setShowPdfViewer(true);
+        }
+      } finally {
+        setIsExporting(false);
       }
-      doc.text("Report", pageWidth / 2, 18, { align: 'center' });
-
-
-      // Generate table inside PDF
-      autoTable(doc, {
-        head: [headers],
-        body: rows,
-        startY: 30,
-        theme: 'grid', // Table style (grid, striped, plain)
-        styles: { fontSize: 10 },
-      });
-
-      const blob = doc.output('blob');
-      const url = URL.createObjectURL(blob);
-      
-      setPdfUrl(url);
-      setShowPdfViewer(true);
-    }
+    }, 0);
   };
 
   return (
@@ -206,6 +217,31 @@ export default function ExportTable({ rows: propRows, headers: propHeaders, file
             height="700px" 
             style={{ border: 'none', display: 'block' }}
             title="PDF Preview"
+          />
+        </div>
+      )}
+
+      {/* Full-screen blur overlay while exporting */}
+      {isExporting && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(116, 114, 114, 0.6)',
+          backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999,
+        }}>
+          <style>{`
+            @keyframes export-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+          `}</style>
+          <div
+            aria-label="Export in progress"
+            style={{
+              width: 72, height: 72,
+              border: '8px solid rgba(0,0,0,0.1)',
+              borderTop: '8px solid #2d66a3ff',
+              borderRadius: '50%',
+              animation: 'export-spin 1s linear infinite',
+              boxShadow: '0 0 18px rgba(0,0,0,0.2)',
+            }}
           />
         </div>
       )}
