@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../AuthContext';
 import './CurrencyRatesTable.css';
 
@@ -57,6 +58,7 @@ export default function CurrencyRatesTable() {
   const pageSize = 20;
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
+  const { t } = useTranslation();
 
   // Load currencies
   useEffect(() => {
@@ -70,13 +72,13 @@ export default function CurrencyRatesTable() {
         if (cancelled) return;
         setCurrencies(d || []);
       } catch (e) {
-        if (!cancelled) setError('Failed to load currencies');
+        if (!cancelled) setError(t('currencyTable.errorLoadCurrencies'));
       } finally {
         if (!cancelled) setCurrenciesLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [t]);
 
   // When currencies load, default the selectedFrom to the first currency
   useEffect(() => {
@@ -142,7 +144,7 @@ export default function CurrencyRatesTable() {
         setRatesByCurrency(out);
       } catch (e) {
         if (controller.signal.aborted || cancelled) return;
-        setError('Failed to load rates');
+        setError(t('currencyTable.errorLoadRates'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -152,7 +154,7 @@ export default function CurrencyRatesTable() {
       cancelled = true;
       controller.abort();
     };
-  }, [currencies]);
+  }, [currencies, t]);
 
   const rows = useMemo(() => {
     const rowsAcc = [];
@@ -276,7 +278,7 @@ export default function CurrencyRatesTable() {
 
     if (!editingKey) return;
     const newEcb = Number(editingValue);
-    if (Number.isNaN(newEcb)) { setError('Invalid value'); setEditingKey(null); return; }
+    if (Number.isNaN(newEcb)) { setError(t('currencyTable.errorInvalidValue')); setEditingKey(null); return; }
     const fromId = row.fromId;
     const toId = row.toId;
     const dateKey = row.dateKey;
@@ -293,7 +295,7 @@ export default function CurrencyRatesTable() {
       if (fromCurrency && (fromCurrency.CurrencyCode || '').toUpperCase() === 'EUR') {
         fromEntry = { rate: 1, margin: 0 };
       } else {
-        setError('Missing base rate for source currency'); setEditingKey(null); return;
+        setError(t('currencyTable.errorMissingBase')); setEditingKey(null); return;
       }
     }
 
@@ -303,7 +305,7 @@ export default function CurrencyRatesTable() {
     try {
       // Strict mode: require specific CurrencyRates row id
       const rateRowId = row.toRateId || null;
-      if (!rateRowId) { setError('Cannot update: missing rate row id (refresh data)'); setEditingKey(null); return; }
+      if (!rateRowId) { setError(t('currencyTable.errorMissingRateId')); setEditingKey(null); return; }
       const res = await fetch('http://localhost:4000/api/update/update-ecbRate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -312,7 +314,7 @@ export default function CurrencyRatesTable() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body && body.error ? body.error : 'Update failed');
+        setError(body && body.error ? body.error : t('currencyTable.errorUpdateFailed'));
         setEditingKey(null);
         return;
       }
@@ -334,7 +336,7 @@ export default function CurrencyRatesTable() {
 
       setEditingKey(null);
     } catch (err) {
-      setError('Update failed');
+      setError(t('currencyTable.errorUpdateFailed'));
       setEditingKey(null);
     }
   };
@@ -351,18 +353,18 @@ export default function CurrencyRatesTable() {
 
   return (
     <div>
-      {loading && <div>Loading...</div>}
+      {loading && <div>{t('currencyTable.loading')}</div>}
       {error && <div className="error">{error}</div>}
       <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ position: 'relative' }}>
           <button className="tab-btn" onClick={() => setShowFromDropdown(s => !s)} style={{ padding: '6px 10px' }}>
-            From filter ({pendingFrom && pendingFrom.length ? pendingFrom.length : 'All'}) ▾
+            {`${t('currencyTable.fromFilter')} (${pendingFrom && pendingFrom.length ? pendingFrom.length : t('currencyTable.all')}) ▾`}
           </button>
           {showFromDropdown && (
             <div className="filter-dropdown">
               <div className="filter-button-row">
-                <button onClick={() => { setPendingFrom(currencies.map(c => String(c.Id))); }} className="btn-plain filter-select-btn">Select all</button>
-                <button onClick={() => { setPendingFrom([]); }} className="btn-plain filter-clear-btn">Clear</button>
+                <button onClick={() => { setPendingFrom(currencies.map(c => String(c.Id))); }} className="btn-plain filter-select-btn">{t('currencyTable.selectAll')}</button>
+                <button onClick={() => { setPendingFrom([]); }} className="btn-plain filter-clear-btn">{t('currencyTable.clear')}</button>
               </div>
               <div className="filter-list">
                 {currencies.map((c) => (
@@ -393,13 +395,13 @@ export default function CurrencyRatesTable() {
 
         <div style={{ position: 'relative' }}>
           <button className="tab-btn" onClick={() => setShowToDropdown(s => !s)} style={{ padding: '6px 10px' }}>
-            To filter ({pendingTo && pendingTo.length ? pendingTo.length : 'All'}) ▾
+            {`${t('currencyTable.toFilter')} (${pendingTo && pendingTo.length ? pendingTo.length : t('currencyTable.all')}) ▾`}
           </button>
           {showToDropdown && (
             <div className="filter-dropdown">
               <div className="filter-button-row">
-                <button onClick={() => { setPendingTo(currencies.map(c => String(c.Id))); }} className="btn-plain filter-select-btn">Select all</button>
-                <button onClick={() => { setPendingTo([]); }} className="btn-plain filter-clear-btn">Clear</button>
+                <button onClick={() => { setPendingTo(currencies.map(c => String(c.Id))); }} className="btn-plain filter-select-btn">{t('currencyTable.selectAll')}</button>
+                <button onClick={() => { setPendingTo([]); }} className="btn-plain filter-clear-btn">{t('currencyTable.clear')}</button>
               </div>
               <div className="filter-list">
                 {currencies.map((c) => {
@@ -439,7 +441,7 @@ export default function CurrencyRatesTable() {
             setPage(1);
             setShowFromDropdown(false);
             setShowToDropdown(false);
-          }}>Apply filters</button>
+          }}>{t('currencyTable.apply')}</button>
         </div>
       </div>
 
@@ -447,18 +449,18 @@ export default function CurrencyRatesTable() {
         {isLoading && (
           <div className="table-loading">
             <div className="spinner" aria-hidden="true" />
-            <span>Loading data...</span>
+            <span>{t('currencyTable.loading')}</span>
           </div>
         )}
         <table className="curr-table">
           <thead>
             <tr>
-              <th onClick={() => onHeaderClick('from')}>From currency code {sortBy === 'from' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => onHeaderClick('to')}>To currency code {sortBy === 'to' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => onHeaderClick('ecb')}>ECB rate {sortBy === 'ecb' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => onHeaderClick('sell')}>Sell rate {sortBy === 'sell' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => onHeaderClick('buy')}>Buy rate {sortBy === 'buy' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-              <th onClick={() => onHeaderClick('date')}>Date {sortBy === 'date' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+              <th onClick={() => onHeaderClick('from')}>{t('currencyTable.fromCode')} {sortBy === 'from' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+              <th onClick={() => onHeaderClick('to')}>{t('currencyTable.toCode')} {sortBy === 'to' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+              <th onClick={() => onHeaderClick('ecb')}>{t('currencyTable.ecbRate')} {sortBy === 'ecb' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+              <th onClick={() => onHeaderClick('sell')}>{t('currencyTable.sellRate')} {sortBy === 'sell' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+              <th onClick={() => onHeaderClick('buy')}>{t('currencyTable.buyRate')} {sortBy === 'buy' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+              <th onClick={() => onHeaderClick('date')}>{t('currencyTable.date')} {sortBy === 'date' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
             </tr>
           </thead>
           <tbody>
@@ -494,7 +496,7 @@ export default function CurrencyRatesTable() {
                             style={{ width: 120, padding: '4px 6px', paddingRight: 28 }}
                           />
                           <button
-                            title="Cancel"
+                            title={t('currencyTable.cancel')}
                             onMouseDown={() => { cancelingRef.current = true; }}
                             onClick={() => { setEditingKey(null); setEditingValue(''); cancelingRef.current = false; }}
                             style={{
@@ -517,7 +519,7 @@ export default function CurrencyRatesTable() {
                           { isAdmin && (r.from || '').toUpperCase() === 'EUR' ? (
                             <button
                               onClick={(e) => { e.stopPropagation(); setEditingKey(`${r.from}-${r.to}-${r.dateKey}`); setEditingValue(String(r.ecb)); }}
-                                title="Edit ECB"
+                                title={t('currencyTable.editEcb')}
 
                                 // Just miroring pencil
                                 style={{ border: 'none', background: 'transparent', cursor: 'pointer', transform: 'scaleX(-1)', display: 'inline-block', paddingBottom: 0, paddingTop: 0 }}
@@ -534,20 +536,20 @@ export default function CurrencyRatesTable() {
                 </tr>
             ))}
             {pageRows.length === 0 && !isLoading && (
-              <tr><td colSpan={6} className="no-data-cell">No data available.</td></tr>
+              <tr><td colSpan={6} className="no-data-cell">{t('currencyTable.noData')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
       <div className="pagination">
-        <div>Showing {Math.min((page - 1)*pageSize + 1, total)} - {Math.min(page*pageSize, total)} of {total}</div>
+        <div>{t('currencyTable.showing', { from: Math.min((page - 1)*pageSize + 1, total), to: Math.min(page*pageSize, total), total })}</div>
         <div className="pagination-controls">
-          <button onClick={() => setPage(1)} disabled={page === 1}>« First</button>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>‹ Prev</button>
-          <span>Page {page} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages}>Next ›</button>
-          <button onClick={() => setPage(totalPages)} disabled={page === totalPages}>Last »</button>
+          <button onClick={() => setPage(1)} disabled={page === 1}>« {t('currencyTable.first')}</button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>‹ {t('currencyTable.prev')}</button>
+          <span>{t('currencyTable.page', { page, total: totalPages })}</span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages}>{t('currencyTable.next')} ›</button>
+          <button onClick={() => setPage(totalPages)} disabled={page === totalPages}>{t('currencyTable.last')} »</button>
         </div>
       </div>
 

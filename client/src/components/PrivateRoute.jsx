@@ -1,12 +1,14 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext'; // Import the auth hook
 
 export default function PrivateRoute({ children, allowedRoles = [] }) {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
 
     if (loading) {
-      return <div>Loading...</div>;
+      return <div>{t('routes.loading')}</div>;
     }
 
   if (!user) {

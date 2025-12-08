@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function CreateCurrency() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const { t } = useTranslation();
 
   const onChange = (e) => {
     // Allow only latin letters, uppercase, max 3 chars
@@ -19,7 +21,7 @@ export default function CreateCurrency() {
     setError('');
     setSuccess(false);
     if (code.length !== 3) {
-      setError('Currency code must be exactly 3 letters');
+      setError(t('createCurrency.errorCode'));
       return;
     }
     setLoading(true);
@@ -33,7 +35,7 @@ export default function CreateCurrency() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body && body.error ? body.error : `Create failed (${res.status})`);
+        setError(body && body.error ? body.error : t('createCurrency.errorCreateFailed', { status: res.status }));
         setLoading(false);
         return;
       }
@@ -41,7 +43,7 @@ export default function CreateCurrency() {
       
       setSuccess(true); // Success
     } catch (err) {
-      setError('Request failed');
+      setError(t('createCurrency.errorRequest'));
     } finally {
       setLoading(false);
     }
@@ -50,12 +52,12 @@ export default function CreateCurrency() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <label style={{ fontWeight: 600 }}>Currency code</label>
+        <label style={{ fontWeight: 600 }}>{t('createCurrency.label')}</label>
         <input
           value={code}
           onChange={onChange}
           maxLength={3}
-          placeholder="ABC"
+          placeholder={t('createCurrency.placeholder')}
           style={{ padding: '6px 8px', width: 80, textTransform: 'uppercase' }}
         />
         <button
@@ -64,12 +66,12 @@ export default function CreateCurrency() {
           disabled={loading || code.length !== 3}
           style={{ padding: '6px 10px' }}
         >
-          {loading ? 'Creating...' : 'Create'}
+          {loading ? t('createCurrency.creating') : t('createCurrency.create')}
         </button>
       </div>
 
       {error && <div className="error">{error}</div>}
-      {success && <div style={{ color: '#7ee787' }}>Currency "{code}" created successfully.</div>}
+      {success && <div style={{ color: '#7ee787' }}>{t('createCurrency.success', { code })}</div>}
 
       {/* {success && (
         <div style={{ marginTop: 12 }}>

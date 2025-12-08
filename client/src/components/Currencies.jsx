@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function Currencies() {
   const [currencies, setCurrencies] = useState([]);
+  const { t } = useTranslation();
 
 useEffect(() => {
   fetch('http://localhost:4000/api/currencies')
@@ -16,7 +18,7 @@ useEffect(() => {
 
   return (
     <div>
-  <h2>List of Ids from the Currencies table</h2>
+  <h2>{t('currenciesList.title')}</h2>
       <ul>
         {currencies.map(c => (
           <li key={c.Id}>{c.Id} == {c.CurrencyCode}</li>

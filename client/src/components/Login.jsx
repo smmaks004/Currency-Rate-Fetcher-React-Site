@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import './Login.css';
 import { useAuth } from './AuthContext';
 
@@ -10,13 +11,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!email) return setError('Please enter email');
-    if (!password) return setError('Please enter password');
+    if (!email) return setError(t('login.errorEmailRequired'));
+    if (!password) return setError(t('login.errorPasswordRequired'));
 
     setLoading(true);
     try {
@@ -32,7 +34,7 @@ export default function Login() {
       if (!resp.ok) {
         
         // Backend returns { error: 'msg' } on failure
-        const msg = data && data.error ? data.error : 'Login failed';
+        const msg = data && data.error ? data.error : t('login.loginFailed');
         setError(msg);
         setLoading(false);
         return;
@@ -51,7 +53,7 @@ export default function Login() {
 
     } catch (err) {
       console.error('Login request failed', err);
-      const msg = err && err.message ? err.message : 'Network error, please try again';
+      const msg = err && err.message ? err.message : t('login.networkError');
       setError(msg);
       setLoading(false);
     }
@@ -60,13 +62,13 @@ export default function Login() {
   return (
     <div className="login-container">
       <form className="login-box" onSubmit={handleSubmit}>
-        <h2>Login</h2>
+        <h2>{t('login.title')}</h2>
 
         <div className="input-group">
-          <label>Email</label>
+          <label>{t('login.emailLabel')}</label>
           <input
             type="email"
-            placeholder="Enter email"
+            placeholder={t('login.emailPlaceholder')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -75,10 +77,10 @@ export default function Login() {
         </div>
 
         <div className="input-group">
-          <label>Password</label>
+          <label>{t('login.passwordLabel')}</label>
           <input
             type="password"
-            placeholder="Enter password"
+            placeholder={t('login.passwordPlaceholder')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -89,9 +91,9 @@ export default function Login() {
         {error && <p className="error">{error}</p>}
 
         <button type="submit" className="login-btn" disabled={loading}>
-          {loading ? 'Logging in...' : 'Log in'}
+          {loading ? t('login.loading') : t('login.submit')}
         </button>
-        <p className="forgot-password">Forgot password?</p>
+        <p className="forgot-password">{t('login.forgot')}</p>
       </form>
     </div>
   );

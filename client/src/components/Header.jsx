@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
 import './Header.css';
 
@@ -8,6 +9,7 @@ export default function Header() {
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef(null);
+  const { t, i18n } = useTranslation();
 
   const handleLogout = async () => {
     try { await logout(); } catch (e) { console.warn('Logout failed', e); }
@@ -34,16 +36,32 @@ export default function Header() {
   return (
     <header className="topbar">
       <div className="brand-and-nav" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <Link to="/" className="brand" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Exchange Explorer</Link>
+        <Link to="/" className="brand" style={{ color: '#cbd5e1', textDecoration: 'none' }}>{t('header.brand')}</Link>
         {user && (
           <div className="nav-tab">
             <Link to="/currencies_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
-              Currency management
+              {t('header.currencyManagement')}
             </Link>
           </div>
         )}
       </div>
       <div className="top-actions">
+        <div className="lang-switch" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '12px' }}>
+          <span className="lang-label" aria-hidden="true" style={{ color: '#cbd5e1', fontSize: '12px' }}>{t('header.language')}</span>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {['en', 'lv'].map((lng) => (
+              <button
+                key={lng}
+                className={`btn-link ${i18n.language === lng ? 'active' : ''}`}
+                onClick={() => i18n.changeLanguage(lng)}
+                aria-label={t('header.switchTo', { lng: lng.toUpperCase() })}
+              >
+                {lng.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {user ? (
           <div className="user-block" ref={userMenuRef}>
             <span className="user-label"><strong>{`${user.FirstName || ''} ${user.LastName || ''}`.trim()}</strong></span>
@@ -52,20 +70,20 @@ export default function Header() {
               aria-haspopup="true"
               aria-expanded={showUserMenu}
               onClick={(e) => { e.stopPropagation(); setShowUserMenu(s => !s); }}
-              title="User menu"
+              title={t('header.userMenu')}
             >
               ▾
             </button>
 
             {showUserMenu && (
               <div className="user-menu" role="menu">
-                <button className="btn-plain" onClick={() => { setShowUserMenu(false); navigate('/profile'); }}>Profile</button>
-                <button className="btn-plain" onClick={() => { setShowUserMenu(false); handleLogout(); }}>Logout</button>
+                <button className="btn-plain" onClick={() => { setShowUserMenu(false); navigate('/profile'); }}>{t('header.profile')}</button>
+                <button className="btn-plain" onClick={() => { setShowUserMenu(false); handleLogout(); }}>{t('header.logout')}</button>
               </div>
             )}
           </div>
         ) : (
-          <button className="btn-primary" onClick={() => navigate('/login')}>Login</button>
+          <button className="btn-primary" onClick={() => navigate('/login')}>{t('header.login')}</button>
         )}
       </div>
     </header>

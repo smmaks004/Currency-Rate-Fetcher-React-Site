@@ -54,6 +54,7 @@ export default function Home() {
   const [chartReady, setChartReady] = useState(false);
   const [latestRates, setLatestRates] = useState(null);
   const { user } = useAuth();
+  const { t } = useTranslation();
   
   
   const logDebug = useCallback((msg) => {
@@ -92,14 +93,14 @@ export default function Home() {
         if (attempt < maxRetries) {
           setTimeout(() => load(attempt + 1), retryDelay);
         } else {
-          setError('Failed to load currency list (server unavailable)');
+          setError(t('home.errorLoadCurrencies'));
         }
       }
     };
 
     load();
     return () => { cancelled = true; };
-  }, [logDebug]);
+  }, [logDebug, t]);
 
   // -----------------------------------------------------------
   // fetchRates: request full history for a currency and return a Map
@@ -432,8 +433,7 @@ export default function Home() {
           }
         }
       },
-      title: { text: 'Exchange Rate Dynamics', style: { color: '#e2e8f0', fontSize: '16px' }, align: 'left' },
-      
+      title: { text: t('home.title'), style: { color: '#e2e8f0', fontSize: '16px' }, align: 'left' },
       rangeSelector: {
         selected: 4, // Default to the "All" button
         inputEnabled: false,
@@ -452,7 +452,7 @@ export default function Home() {
           { type: 'month', count: 1, text: '1M' },
           { type: 'year', count: 1, text: '1Y' },
           { type: 'year', count: 5, text: '5Y' },
-          { type: 'all', text: 'All' }
+          { type: 'all', text: t('home.rangeAll') }
         ]
       },
 
@@ -475,7 +475,7 @@ export default function Home() {
         shadow: true,
         style: { color: '#f8fafc' },
         headerFormat: '<span style="font-size: 12px; color: #94a3b8">{point.key}</span><br/>',
-        pointFormat: '<span style="color:{point.color}">●</span> {series.name}: <b>{point.y}</b><br/>',
+        pointFormat: `<span style="color:{point.color}">●</span> ${t('home.rate')}: <b>{point.y}</b><br/>`,
         valueDecimals: 4 
       },
 
@@ -517,7 +517,7 @@ export default function Home() {
 
       series: [
         { 
-          name: 'Buy', 
+          name: t('home.seriesBuy'), 
           id: 'buy-series', 
           type: 'areaspline',
           data: [], 
@@ -530,7 +530,7 @@ export default function Home() {
           threshold: null
         },
         { 
-          name: 'Sell', 
+          name: t('home.seriesSell'), 
           id: 'sell-series',
           type: 'areaspline',
           data: [], 
@@ -545,7 +545,7 @@ export default function Home() {
 
         // SPREAD (MIX MODE)
         {
-          name: 'Spread',
+          name: t('home.seriesSpread'),
           id: 'spread-series',
           type: 'arearange', 
           data: [],
@@ -564,14 +564,14 @@ export default function Home() {
           dataGrouping: { enabled: true, approximation: 'averages' },
           visible: false,
           tooltip: {
-            pointFormat: '<span style="color:#3b82f6">●</span> Rate: <b>{point.low} - {point.high}</b><br/>'
+            pointFormat: `<span style="color:#3b82f6">●</span> ${t('home.rate')}: <b>{point.low} - {point.high}</b><br/>`
           }
         }
       ],
       credits: { enabled: false },
       time: { useUTC: true }
     };
-  }, []);
+  }, [t]);
 
   // Apply a simple dark theme to Highcharts globally once
   useEffect(() => {
@@ -702,8 +702,8 @@ export default function Home() {
       const chart = chartRef.current?.chart;
       if (chart && chart.series && chart.series.length >= 2) {
         try {
-          const buySeries = chart.series.find(s => s.name === 'Buy') || chart.series[0];
-          const sellSeries = chart.series.find(s => s.name === 'Sell') || chart.series[1];
+          const buySeries = chart.series.find(s => s.id === 'buy-series') || chart.series[0];
+          const sellSeries = chart.series.find(s => s.id === 'sell-series') || chart.series[1];
 
           // Find last non-null point (largest x) in each series
           const lastPoint = (series) => {
@@ -755,9 +755,9 @@ export default function Home() {
     if (!chart || !chart.series) return;
     try {
       if (mode === 'buy') {
-        chart.series.forEach(s => s.name === 'Buy' ? s.show() : s.hide());
+        chart.series.forEach(s => s.id === 'buy-series' ? s.show() : s.hide());
       } else if (mode === 'sell') {
-        chart.series.forEach(s => s.name === 'Sell' ? s.show() : s.hide());
+        chart.series.forEach(s => s.id === 'sell-series' ? s.show() : s.hide());
       } else { // mix
         chart.series.forEach(s => s.show());
       }
@@ -775,31 +775,31 @@ export default function Home() {
           <div className="headline controls-head">{ (currencies.find(c => c.Id === fromId)?.CurrencyCode || '—') + ' → ' + (currencies.find(c => c.Id === toId)?.CurrencyCode || '—') }</div>
           <div className="select-row">
             <label>
-              From
+              {t('home.from')}
               <select value={fromId || ''} onChange={(e) => setFromId(Number(e.target.value))}>
                 {currencies.map((c) => (<option key={c.Id} value={c.Id}>{c.CurrencyCode}</option>))}
               </select>
             </label>
 
             <label>
-              To
+              {t('home.to')}
               <select value={toId || ''} onChange={(e) => setToId(Number(e.target.value))}>
                 {currencies.map((c) => (<option key={c.Id + '-to'} value={c.Id}>{c.CurrencyCode}</option>))}
               </select>
             </label>
 
             <div className="mode-control">
-              <label className={`mode-btn ${mode === 'buy' ? 'active' : ''}`} onClick={() => setMode('buy')}>Buy</label>
-              <label className={`mode-btn ${mode === 'sell' ? 'active' : ''}`} onClick={() => setMode('sell')}>Sell</label>
-              <label className={`mode-btn ${mode === 'mix' ? 'active' : ''}`} onClick={() => setMode('mix')}>Mix</label>
+              <label className={`mode-btn ${mode === 'buy' ? 'active' : ''}`} onClick={() => setMode('buy')}>{t('home.modeBuy')}</label>
+              <label className={`mode-btn ${mode === 'sell' ? 'active' : ''}`} onClick={() => setMode('sell')}>{t('home.modeSell')}</label>
+              <label className={`mode-btn ${mode === 'mix' ? 'active' : ''}`} onClick={() => setMode('mix')}>{t('home.modeMix')}</label>
             </div>
           </div>
         </section>
 
         <section className="chart-card">
           <div className="chart-header">
-            <h3>Exchange Rate Dynamics</h3>
-            <div className="chart-sub">Daily data · hover for details</div>
+            <h3>{t('home.title')}</h3>
+            <div className="chart-sub">{t('home.subtitle')}</div>
           </div>
 
           <div className="chart-area" style={{ minHeight: 420, position: 'relative' }}>
@@ -811,7 +811,7 @@ export default function Home() {
             />
             {loading && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(11,15,24,0.72)', color: '#e6eef8', zIndex: 10 }}>
-                Loading...
+                {t('home.loading')}
               </div>
             )}
           </div>
@@ -819,13 +819,13 @@ export default function Home() {
           {/* Latest buy/sell currency point */}
           <div className="latest-currency-points">
             <div className="currency-point-card">
-              <div className="label">Buy</div>
+              <div className="label">{t('home.latestBuy')}</div>
               <div className="value">{latestRates ? (Number.isFinite(latestRates.buy) ? latestRates.buy.toFixed(6) : '—') : '—'}</div>
               <div className="date">{latestRates ? new Date(latestRates.ts).toLocaleDateString() : ''}</div>
             </div>
 
             <div className="currency-point-card">
-              <div className="label">Sell</div>
+              <div className="label">{t('home.latestSell')}</div>
               <div className="value">{latestRates ? (Number.isFinite(latestRates.sell) ? latestRates.sell.toFixed(6) : '—') : '—'}</div>
               <div className="date">{latestRates ? new Date(latestRates.ts).toLocaleDateString() : ''}</div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Header from '../Header';
 import CurrencyRatesTable from './CurrencyRatesTable';
 import CreateCurrency from './subsections/CreateCurrency';
@@ -9,6 +10,7 @@ export default function CurrencyManagement() {
   const [activeTab, setActiveTab] = useState('table'); // 'table' | 'create' | 'export'
   const { user } = useAuth();
   const isAdmin = !!(user && ((user.Role).toString().toLowerCase() === 'admin'));
+  const { t } = useTranslation();
 
   return (
     <div className="home-container">
@@ -19,14 +21,14 @@ export default function CurrencyManagement() {
           className="controls"
           style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0' }}
         >
-          <div className="headline" /*style={{ marginRight: '32px' }}*/>Currency management</div>
+          <div className="headline" /*style={{ marginRight: '32px' }}*/>{t('currencyManagement.title')}</div>
           <div className="tabs-row" style={{ display: 'flex', gap: '8px', marginTop: 0 }}>
             <button
               className={`tab-btn ${activeTab === 'table' ? 'active' : ''}`}
               onClick={() => setActiveTab('table')}
               style={{ padding: '6px 8px' }}
             >
-              Currencies Table
+              {t('currencyManagement.tabTable')}
             </button>
             {isAdmin && (
               <button
@@ -34,7 +36,7 @@ export default function CurrencyManagement() {
                 onClick={() => setActiveTab('create')}
                 style={{ padding: '6px 8px' }}
               >
-                Create Currency
+                {t('currencyManagement.tabCreate')}
               </button>
             )}
             {/* <button

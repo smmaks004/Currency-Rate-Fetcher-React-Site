@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import './Converter.css';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import enGB from 'date-fns/locale/en-GB';
@@ -34,6 +35,7 @@ function roundUpToDecimal(num, decimals) {
 // Converter component
 // =======================================================================
 export default function ConverterPage() {
+    const { t } = useTranslation();
     // --- State ---
     const [currencies, setCurrencies] = useState([]);
     const [fromId, setFromId] = useState(null);
@@ -80,11 +82,11 @@ export default function ConverterPage() {
                     setToId(id => id || (d[1] ? d[1].Id : d[0].Id));
                 }
             } catch (e) {
-                setError('Failed to load currencies');
+                setError(t('converter.errorLoadCurrencies'));
             }
         })();
         return () => { cancelled = true; };
-    }, []);
+    }, [t]);
 
     // --- API and calculations ---
     const fetchRates = useCallback(async (currencyId) => {
@@ -162,7 +164,7 @@ export default function ConverterPage() {
         try {
             // We only care about SELL rate now
             const { sell, usedDate } = await computePairRates(fromId, toId, date);
-            if (sell == null) { setError('No rate data'); setLoading(false); return; }
+            if (sell == null) { setError(t('converter.errorNoRate')); setLoading(false); return; }
 
             let calculatedValFrom, calculatedValTo;
             
@@ -187,11 +189,11 @@ export default function ConverterPage() {
             });
             
         } catch (e) {
-            setError('Calculation error');
+            setError(t('converter.errorCalc'));
         } finally {
             setLoading(false);
         }
-    }, [fromId, toId, date, amount, activeInput, computePairRates]);
+    }, [fromId, toId, date, amount, activeInput, computePairRates, t]);
 
     useEffect(() => {
         const timer = setTimeout(() => computeConversion(), 150);
@@ -232,7 +234,7 @@ export default function ConverterPage() {
         <div className="converter-card">
             {/* Header */}
             <div className="conv-header">
-                <h3>Currency Converter</h3>
+                <h3>{t('converter.title')}</h3>
             </div>
 
             <div className="conv-body">
@@ -241,7 +243,7 @@ export default function ConverterPage() {
                 {/* TOP INPUT (Source / Sell) */}
                 <div className="conv-col">
                     <label className="conv-label conv-label-selling">
-                        Selling ({fromCode})
+                        {t('converter.selling', { code: fromCode })}
                     </label>
                     <input
                         className={`conv-input ${activeInput === 'from' ? 'main-field-active' : ''}`}
@@ -256,20 +258,20 @@ export default function ConverterPage() {
                 </div>
 
                 <div className="conv-col">
-                    <label>Currency</label>
+                    <label>{t('converter.currency')}</label>
                     <select className="conv-select" value={fromId||''} onChange={(e)=>setFromId(Number(e.target.value))}>
                         {currencies.map(c=> <option key={c.Id} value={c.Id}>{c.CurrencyCode}</option>)}
                     </select>
                 </div>
                 
                 <div className="conv-swap">
-                    <button className="conv-select conv-small-btn" onClick={swap} title="Swap Currencies">《 》</button>
+                    <button className="conv-select conv-small-btn" onClick={swap} title={t('converter.swap')}>《 》</button>
                 </div>
 
                 {/* BOTTOM INPUT (Target / Get) */}
                 <div className="conv-col">
                     <label className="conv-label">
-                        Will Get ({toCode})
+                        {t('converter.willGet', { code: toCode })}
                     </label>
                     <input
                         className={`conv-input ${activeInput === 'to' ? 'main-field-active' : ''}`}
@@ -283,7 +285,7 @@ export default function ConverterPage() {
                 </div>
 
                 <div className="conv-col">
-                    <label>Currency</label>
+                    <label>{t('converter.currency')}</label>
                     <select className="conv-select" value={toId||''} onChange={(e)=>setToId(Number(e.target.value))}>
                         {currencies.map(c=> <option key={c.Id+'-to'} value={c.Id}>{c.CurrencyCode}</option>)}
                     </select>
@@ -293,7 +295,7 @@ export default function ConverterPage() {
                 {/* DATE & STATUS */}
                 <div className="converter-row conv-row-between">
                     <div className="conv-date-wrap">
-                        <label>Date:</label>
+                        <label>{t('converter.date')}</label>
                         <DatePicker
                             selected={date}
                             onChange={(d) => { if(d){ d.setHours(0,0,0,0); setDate(d); }}}
@@ -314,7 +316,7 @@ export default function ConverterPage() {
                         />
                     </div>
                     <div>
-                        {loading && <span className="conv-loading">Updating rates...</span>}
+                        {loading && <span className="conv-loading">{t('converter.loading')}</span>}
                     </div>
                  </div>
 
@@ -326,16 +328,16 @@ export default function ConverterPage() {
                         <div className="conv-result-center">
                             <div className="conv-result-title">
                                 <span>
-                                    Selling <b>{result.valFrom} {fromCode}</b> gets you <b>{result.valTo} {toCode}</b>
+                                    {t('converter.result', { fromVal: result.valFrom, fromCode, toVal: result.valTo, toCode })}
                                 </span>
                             </div>
 
                             <div className="conv-result-rate">
-                                Rate applied: 1 {fromCode} = {result.usedRate?.toFixed(6)} {toCode}
+                                {t('converter.rateApplied', { fromCode, rate: result.usedRate?.toFixed(6), toCode })}
                             </div>
                             {result.usedDate && (
                                 <div className="conv-result-date">
-                                    Rates taken from: {result.usedDate}
+                                    {t('converter.ratesTaken', { date: result.usedDate })}
                                 </div>
                             )}
                         </div>

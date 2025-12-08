@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
 import './Home.css';
 import './Profile.css';
@@ -13,13 +14,14 @@ export default function Profile() {
   const [lastName, setLastName] = useState(user?.LastName || '');
   const [email, setEmail] = useState(user?.Email || '');
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState({ text: '', kind: null });
 
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
-  const [pwMessage, setPwMessage] = useState('');
+  const [pwMessage, setPwMessage] = useState({ text: '', kind: null });
+  const { t } = useTranslation();
 
   React.useEffect(() => {
     setFirstName(user?.FirstName || '');
@@ -29,9 +31,9 @@ export default function Profile() {
 
 
   const onSaveProfile = async () => {
-    setMessage('');
+    setMessage({ text: '', kind: null });
     if (!firstName && !lastName) {
-      setMessage('Provide at least first or last name');
+      setMessage({ text: t('profile.provideName'), kind: 'error' });
       return;
     }
     setSaving(true);
@@ -44,14 +46,14 @@ export default function Profile() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setMessage(err && err.error ? err.error : 'Update failed');
+        setMessage({ text: err && err.error ? err.error : t('profile.updateFailed'), kind: 'error' });
       } else {
         await refreshUser();
-        setMessage('Profile updated');
+        setMessage({ text: t('profile.profileUpdated'), kind: 'success' });
         setEditing(false);
       }
     } catch (e) {
-      setMessage('Update failed');
+      setMessage({ text: t('profile.updateFailed'), kind: 'error' });
     } finally {
       setSaving(false);
     }
@@ -59,9 +61,9 @@ export default function Profile() {
 
 
   const onChangePassword = async () => {
-    setPwMessage('');
-    if (!password) { setPwMessage('Password required'); return; }
-    if (password !== confirmPassword) { setPwMessage('Passwords do not match'); return; }
+    setPwMessage({ text: '', kind: null });
+    if (!password) { setPwMessage({ text: t('profile.passwordRequired'), kind: 'error' }); return; }
+    if (password !== confirmPassword) { setPwMessage({ text: t('profile.passwordMismatch'), kind: 'error' }); return; }
     setPwSaving(true);
     try {
       const res = await fetch('http://localhost:4000/api/auth/change-password', {
@@ -72,15 +74,15 @@ export default function Profile() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setPwMessage(err && err.error ? err.error : 'Password change failed');
+        setPwMessage({ text: err && err.error ? err.error : t('profile.passwordChangeFailed'), kind: 'error' });
       } else {
-        setPwMessage('Password updated');
+        setPwMessage({ text: t('profile.passwordUpdated'), kind: 'success' });
         setShowPasswordForm(false);
         setPassword('');
         setConfirmPassword('');
       }
     } catch (e) {
-      setPwMessage('Password change failed');
+      setPwMessage({ text: t('profile.passwordChangeFailed'), kind: 'error' });
     } finally {
       setPwSaving(false);
     }
@@ -90,9 +92,9 @@ export default function Profile() {
   return (
     <div className="main-card profile-card">
       <div className="profile-header">
-        <h2>Profile</h2>
+        <h2>{t('profile.title')}</h2>
         <div>
-          <button className="btn-ghost" onClick={() => navigate(-1)}>Back</button>
+          <button className="btn-ghost" onClick={() => navigate(-1)}>{t('profile.back')}</button>
         </div>
       </div>
 
@@ -103,30 +105,30 @@ export default function Profile() {
               // Read-only view
               <>
                 <div className="profile-read">
-                  <div><strong className="profile-label">First Name:</strong> <span className="profile-value">{firstName || '—'}</span></div>
-                  <div><strong className="profile-label">Last Name:</strong> <span className="profile-value">{lastName || '—'}</span></div>
-                  <div><strong className="profile-label">Email:</strong> <span className="profile-value">{email || '—'}</span></div>
-                  <div className="profile-role"><strong>Role:</strong> {user.Role || 'user'}</div>
+                  <div><strong className="profile-label">{t('profile.firstName')}:</strong> <span className="profile-value">{firstName || '—'}</span></div>
+                  <div><strong className="profile-label">{t('profile.lastName')}:</strong> <span className="profile-value">{lastName || '—'}</span></div>
+                  <div><strong className="profile-label">{t('profile.email')}:</strong> <span className="profile-value">{email || '—'}</span></div>
+                  <div className="profile-role"><strong>{t('profile.role')}:</strong> {user.Role || 'user'}</div>
                 </div>
 
                 <div className="profile-controls">
-                  <button className="btn-ghost" onClick={() => { setEditing(true); setShowPasswordForm(false); }}>Change Profile Data</button>
-                  <button className="btn-ghost" onClick={() => setShowPasswordForm(s => !s)}>{showPasswordForm ? 'Hide Password' : 'Change Password'}</button>
+                  <button className="btn-ghost" onClick={() => { setEditing(true); setShowPasswordForm(false); }}>{t('profile.changeData')}</button>
+                  <button className="btn-ghost" onClick={() => setShowPasswordForm(s => !s)}>{showPasswordForm ? t('profile.hidePassword') : t('profile.changePassword')}</button>
                 </div>
 
                 {showPasswordForm && (
                   <div className="pw-grid">
                     <label className="profile-field">
-                      <div className="profile-label">New Password</div>
+                      <div className="profile-label">{t('profile.newPassword')}</div>
                       <input className="input-small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                     </label>
                     <label className="profile-field">
-                      <div className="profile-label">Confirm Password</div>
+                      <div className="profile-label">{t('profile.confirmPassword')}</div>
                       <input className="input-small" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
                     </label>
                     <div className="pw-actions">
-                      <button className="btn-primary" onClick={onChangePassword} disabled={pwSaving}>{pwSaving ? 'Saving...' : 'Save Password'}</button>
-                      {pwMessage && <div className={`pw-message ${pwMessage.includes('failed') ? 'message--error' : 'message--success'}`}>{pwMessage}</div>}
+                      <button className="btn-primary" onClick={onChangePassword} disabled={pwSaving}>{pwSaving ? t('profile.saving') : t('profile.savePassword')}</button>
+                      {pwMessage.text && <div className={`pw-message ${pwMessage.kind === 'error' ? 'message--error' : 'message--success'}`}>{pwMessage.text}</div>}
                     </div>
                   </div>
                 )}
@@ -135,40 +137,40 @@ export default function Profile() {
               /* Editing view */
               <>
                 <label className="profile-field">
-                  <div className="profile-label">First Name</div>
+                  <div className="profile-label">{t('profile.firstName')}</div>
                   <input className="input-small" value={firstName} onChange={e => setFirstName(e.target.value)} autoFocus />
                 </label>
 
                 <label className="profile-field">
-                  <div className="profile-label">Last Name</div>
+                  <div className="profile-label">{t('profile.lastName')}</div>
                   <input className="input-small" value={lastName} onChange={e => setLastName(e.target.value)} />
                 </label>
 
                 <label className="profile-field full-width">
-                  <div className="profile-label">Email</div>
+                  <div className="profile-label">{t('profile.email')}</div>
                   <input className="input-medium" value={email} onChange={e => setEmail(e.target.value)} />
                 </label>
 
-                <div className="profile-role"><strong>Role:</strong> {user.Role || 'user'}</div>
+                <div className="profile-role"><strong>{t('profile.role')}:</strong> {user.Role || 'user'}</div>
 
                 <div className="btn-row">
-                  <button className="btn-ghost" onClick={() => { setEditing(false); setFirstName(user?.FirstName || ''); setLastName(user?.LastName || ''); setEmail(user?.Email || ''); setMessage(''); setShowPasswordForm(false); }}>Cancel</button>
-                  <button className="btn-primary" onClick={onSaveProfile} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                  <button className="btn-ghost" onClick={() => { setEditing(false); setFirstName(user?.FirstName || ''); setLastName(user?.LastName || ''); setEmail(user?.Email || ''); setMessage({ text: '', kind: null }); setShowPasswordForm(false); }}>{t('profile.cancel')}</button>
+                  <button className="btn-primary" onClick={onSaveProfile} disabled={saving}>{saving ? t('profile.saving') : t('profile.save')}</button>
                 </div>
 
                 {showPasswordForm && (
                   <div className="pw-grid">
                     <label className="profile-field">
-                      <div className="profile-label">New Password</div>
+                      <div className="profile-label">{t('profile.newPassword')}</div>
                       <input className="input-small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                     </label>
                     <label className="profile-field">
-                      <div className="profile-label">Confirm Password</div>
+                      <div className="profile-label">{t('profile.confirmPassword')}</div>
                       <input className="input-small" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
                     </label>
                     <div className="pw-actions">
-                      <button className="btn-primary" onClick={onChangePassword} disabled={pwSaving}>{pwSaving ? 'Saving...' : 'Save Password'}</button>
-                      {pwMessage && <div className={`pw-message ${pwMessage.includes('failed') ? 'message--error' : 'message--success'}`}>{pwMessage}</div>}
+                      <button className="btn-primary" onClick={onChangePassword} disabled={pwSaving}>{pwSaving ? t('profile.saving') : t('profile.savePassword')}</button>
+                      {pwMessage.text && <div className={`pw-message ${pwMessage.kind === 'error' ? 'message--error' : 'message--success'}`}>{pwMessage.text}</div>}
                     </div>
                   </div>
                 )}
@@ -176,12 +178,11 @@ export default function Profile() {
             )}
           </div>
         ) : (
-          <p>Loading user data...</p>
+          <p>{t('profile.loading')}</p>
         )}
       </div>
 
-
-      {message && <div className={`message ${message.includes('failed') ? 'message--error' : 'message--success'}`}>{message}</div>}
+      {message.text && <div className={`message ${message.kind === 'error' ? 'message--error' : 'message--success'}`}>{message.text}</div>}
 
     </div>
   );
