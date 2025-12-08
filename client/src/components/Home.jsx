@@ -8,6 +8,7 @@ import RateConverter from './Converter';
 import './Home.css';
 import Header from './Header';
 import { useAuth } from './AuthContext';
+import { useTranslation } from 'react-i18next';
 
 // Creates a debounced callback: delays invocation until 'wait' ms after the last call. 
 // The returned function includes a 'cancel' method to abort a pending invocation.
