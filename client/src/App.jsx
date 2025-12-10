@@ -4,9 +4,9 @@ import Login from './components/Login';
 import PublicRoute from './components/PublicRoute';
 import Home from './components/Home';
 import PrivateRoute from './components/PrivateRoute'; ///
-// import AdminPage from './components/AdminPage';       ///
 import Profile from './components/Profile';
 import CurrencyManagement from './components/currencies_management/CurrencyManagement';
+import MarginManagement from './components/margin_management/MarginManagement'; //////////
 import './App.css';
 
 import { AuthProvider } from './components/AuthContext'; ///
@@ -30,6 +30,12 @@ function App() {
           <Route path="/currencies_management" element={
             <PrivateRoute>
               <CurrencyManagement />
+            </PrivateRoute>
+          } />
+
+          <Route path="/margin_management" element={
+            <PrivateRoute>
+              <MarginManagement />
             </PrivateRoute>
           } />
 

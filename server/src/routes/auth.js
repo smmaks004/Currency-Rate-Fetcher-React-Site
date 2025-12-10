@@ -7,6 +7,11 @@ const { protect } = require('../middleware/authMiddleware');
 
 const JWT_SECRET = process.env.JWT_SECRET
 
+// Fail fast if secret is missing to avoid signing with "undefined"
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET is not set. Define it in environment/config before starting the server.');
+}
+
 // Sign token
 function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' }); // token lifetime — 1 day
@@ -17,6 +22,7 @@ function signToken(payload) {
 router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email required' });
+  if (!password) return res.status(400).json({ error: 'Password required' });
 
   try {
     const [rows] = await pool.query('SELECT Id, Email, PasswordHash, FirstName, LastName, Role FROM Users WHERE Email = ?', [email]);
@@ -24,15 +30,14 @@ router.post('/login', async (req, res) => {
 
     const user = rows[0];
 
-    let ok = false;
-
+    // Enforce bcrypt: reject non-bcrypt hashes to avoid plaintext acceptance
     const hash = user.PasswordHash || '';
-    if (typeof hash === 'string' && (hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$'))) {
-      ok = await bcrypt.compare(password || '', hash);
-    } else {
-      ok = password === hash;
+    const isBcryptHash = typeof hash === 'string' && (hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$'));
+    if (!isBcryptHash) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    const ok = await bcrypt.compare(password, hash);
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
     // Update last login

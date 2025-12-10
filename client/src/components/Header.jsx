@@ -38,11 +38,16 @@ export default function Header() {
       <div className="brand-and-nav" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <Link to="/" className="brand" style={{ color: '#cbd5e1', textDecoration: 'none' }}>{t('header.brand')}</Link>
         {user && (
-          <div className="nav-tab">
+          <div className="nav-tabs">
             <Link to="/currencies_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
               {t('header.currencyManagement')}
             </Link>
+
+            <Link to="/margin_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
+              Margin management
+            </Link>
           </div>
+          
         )}
       </div>
       <div className="top-actions">

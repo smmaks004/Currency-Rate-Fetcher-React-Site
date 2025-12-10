@@ -39,7 +39,7 @@ export default function Home() {
   const [currencies, setCurrencies] = useState([]); 
   const [fromId, setFromId] = useState(null); // selected 'from' currency Id
   const [toId, setToId] = useState(null); // selected 'to' currency Id
-  const [mode, setMode] = useState('mix'); // display mode: 'buy' | 'sell' | 'mix'
+  const [mode, setMode] = useState('mix'); // display mode: 'buy' | 'sell' | 'mix' | 'origin'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(''); 
   const [debugLogs, setDebugLogs] = useState([]); 
@@ -54,7 +54,8 @@ export default function Home() {
   const [chartReady, setChartReady] = useState(false);
   const [latestRates, setLatestRates] = useState(null);
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const chartInstanceKey = useMemo(() => `chart-${i18n.language}`, [i18n.language]);
   
   
   const logDebug = useCallback((msg) => {
@@ -62,6 +63,22 @@ export default function Home() {
     setDebugLogs((s) => [...s.slice(-200), line]);
     console.debug(line);
   }, []);
+
+  const handleModeChange = useCallback((nextMode) => {
+    if (nextMode === 'origin' && !user) {
+      setError(t('home.originAuthRequired'));
+      return;
+    }
+    setError('');
+    setMode(nextMode);
+  }, [t, user]);
+
+  // If the user signs out while "origin" is selected, revert to mix
+  useEffect(() => {
+    if (!user && mode === 'origin') {
+      setMode('mix');
+    }
+  }, [user, mode]);
 
   // -----------------------------------------------------------
   // Load currency list from backend with retries
@@ -263,7 +280,9 @@ export default function Home() {
           const eurFrom_sell = baseFrom * (1 + (marginFrom || 0) / 2);
           const sell = eurTo_buy / eurFrom_sell;
 
-          found = { buy: Number(buy), sell: Number(sell), ts };
+          const originVal = baseFrom ? Number(baseTo / baseFrom) : null;
+
+          found = { buy: Number(buy), sell: Number(sell), origin: originVal, ts, originTs: ts };
           break;
         }
 
@@ -310,6 +329,7 @@ export default function Home() {
 
     const buyPoints = [];
     const sellPoints = [];
+    const originPoints = [];
 
     // ---------------------------------------------------------
     // Last Observation Carried Forward (LOCF) logic
@@ -345,6 +365,7 @@ export default function Home() {
         if (!aa || !bb) {
           buyPoints.push([ts, null]);
           sellPoints.push([ts, null]);
+          originPoints.push([ts, null]);
           continue;
         }
 
@@ -364,10 +385,13 @@ export default function Home() {
 
         buyPoints.push([ts, Number(buy)]);
         sellPoints.push([ts, Number(sell)]);
+        const originVal = baseFrom ? Number(baseTo / baseFrom) : null;
+        originPoints.push([ts, originVal]);
       } else {
         // Outside requested range -> null to keep axis stable
         buyPoints.push([ts, null]);
         sellPoints.push([ts, null]);
+        originPoints.push([ts, null]);
       }
     }
 
@@ -375,11 +399,15 @@ export default function Home() {
     const chart = chartRef.current?.chart;
     if (chart && chart.series && chart.series.length >= 2) {
       try {
-        const buySeries = chart.series.find(s => s.name === 'Buy') || chart.series[0];
-        const sellSeries = chart.series.find(s => s.name === 'Sell') || chart.series[1];
-        // Replace whole series data (aligned to timeline)
-        buySeries.setData(buyPoints, false, false, false);
-        sellSeries.setData(sellPoints, false, false, false);
+        // Prefer IDs to avoid localization/name mismatches
+        const buySeries = chart.get('buy-series') || chart.series[0];
+        const sellSeries = chart.get('sell-series') || chart.series[1];
+        const originSeries = chart.get('origin-series');
+        // Replace whole series data (aligned to timeline) with a light animation for smoother transitions
+        const anim = { duration: 500 };
+        buySeries.setData(buyPoints, false, anim, false);
+        sellSeries.setData(sellPoints, false, anim, false);
+        if (originSeries) originSeries.setData(originPoints, false, anim, false);
         chart.redraw();
       } catch (e) {
         logDebug('setData error: ' + (e && e.message ? e.message : e));
@@ -427,6 +455,7 @@ export default function Home() {
         style: { fontFamily: 'Inter, system-ui, -apple-system, sans-serif' },
         // Add a bit more left padding so Y-axis labels never overlap the plot
         spacingLeft: 10,
+        animation: { duration: 500 },
         events: {
           load() {
             try { setChartReady(true); } catch (e) {}
@@ -566,6 +595,23 @@ export default function Home() {
           tooltip: {
             pointFormat: `<span style="color:#3b82f6">●</span> ${t('home.rate')}: <b>{point.low} - {point.high}</b><br/>`
           }
+        },
+        {
+          name: t('home.seriesOrigin'),
+          id: 'origin-series',
+          type: 'areaspline',
+          data: [],
+          color: '#0ea5e9',
+          fillColor: {
+            linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+            stops: [[0, 'rgba(14, 165, 233, 0.35)'], [1, 'rgba(14, 165, 233, 0.04)']]
+          },
+          lineWidth: 2,
+          visible: false,
+          threshold: null,
+          tooltip: {
+            pointFormat: `<span style="color:#0ea5e9">●</span> ${t('home.rate')}: <b>{point.y}</b><br/>`
+          }
         }
       ],
       credits: { enabled: false },
@@ -585,6 +631,17 @@ export default function Home() {
       legend: { itemStyle: { color: '#cbd5e1' } }
     });
   }, []);
+
+  // Reflow/redraw on locale change to keep plot aligned after label width changes
+  useEffect(() => {
+    const chart = chartRef.current?.chart;
+    if (chart) {
+      setTimeout(() => {
+        if (chart && chart.reflow) chart.reflow();
+        if (chart && chart.redraw) chart.redraw();
+      }, 0);
+    }
+  }, [i18n.language]);
 
   // -----------------------------------------------------------
   // Attach afterSetExtremes to xAxis after chart is created
@@ -702,8 +759,9 @@ export default function Home() {
       const chart = chartRef.current?.chart;
       if (chart && chart.series && chart.series.length >= 2) {
         try {
-          const buySeries = chart.series.find(s => s.id === 'buy-series') || chart.series[0];
-          const sellSeries = chart.series.find(s => s.id === 'sell-series') || chart.series[1];
+          const buySeries = chart.get('buy-series') || chart.series[0];
+          const sellSeries = chart.get('sell-series') || chart.series[1];
+          const originSeries = chart.get('origin-series');
 
           // Find last non-null point (largest x) in each series
           const lastPoint = (series) => {
@@ -717,24 +775,29 @@ export default function Home() {
 
           const pb = lastPoint(buySeries);
           const ps = lastPoint(sellSeries);
+          const po = lastPoint(originSeries);
 
-          // Prefer when both series have a point with same x (same date)
+          // Prefer aligned latest when buy/sell share same timestamp
           if (pb && ps && pb.x === ps.x) {
-            setLatestRates({ buy: Number(pb.y), sell: Number(ps.y), ts: pb.x });
+            setLatestRates({ buy: Number(pb.y), sell: Number(ps.y), origin: po ? Number(po.y) : null, ts: pb.x, originTs: po ? po.x : null });
             return;
           }
 
-          // Otherwise fall back to best-available: prefer latest common timestamp, else pb.ts or ps.ts
-          if (pb && ps) {
-            const ts = Math.max(pb.x, ps.x);
-            const buyVal = pb.x === ts ? Number(pb.y) : null;
-            const sellVal = ps.x === ts ? Number(ps.y) : null;
-            setLatestRates({ buy: buyVal, sell: sellVal, ts });
+          // Otherwise pick the freshest timestamp among available series
+          const candidates = [pb?.x, ps?.x, po?.x].filter((v) => Number.isFinite(v));
+          if (candidates.length) {
+            const ts = Math.max(...candidates);
+            const buyVal = pb && pb.x === ts ? Number(pb.y) : null;
+            const sellVal = ps && ps.x === ts ? Number(ps.y) : null;
+            const originVal = po && po.x === ts ? Number(po.y) : (po ? Number(po.y) : null);
+            const originTs = po ? po.x : null;
+            setLatestRates({ buy: buyVal, sell: sellVal, origin: originVal, ts, originTs });
             return;
           }
 
-          if (pb) { setLatestRates({ buy: Number(pb.y), sell: null, ts: pb.x }); return; }
-          if (ps) { setLatestRates({ buy: null, sell: Number(ps.y), ts: ps.x }); return; }
+          if (pb) { setLatestRates({ buy: Number(pb.y), sell: null, origin: po ? Number(po.y) : null, ts: pb.x, originTs: po ? po.x : null }); return; }
+          if (ps) { setLatestRates({ buy: null, sell: Number(ps.y), origin: po ? Number(po.y) : null, ts: ps.x, originTs: po ? po.x : null }); return; }
+          if (po) { setLatestRates({ buy: null, sell: null, origin: Number(po.y), ts: po.x, originTs: po.x }); return; }
         } catch (e) {
           logDebug('Reading latest from chart failed: ' + (e && e.message ? e.message : e));
         }
@@ -754,13 +817,40 @@ export default function Home() {
     const chart = chartRef.current?.chart;
     if (!chart || !chart.series) return;
     try {
+      const buySeries = chart.get('buy-series');
+      const sellSeries = chart.get('sell-series');
+      const spreadSeries = chart.get('spread-series');
+      const originSeries = chart.get('origin-series');
+
       if (mode === 'buy') {
-        chart.series.forEach(s => s.id === 'buy-series' ? s.show() : s.hide());
+        buySeries?.setVisible(true, false);
+        sellSeries?.setVisible(false, false);
+        spreadSeries?.setVisible(false, false);
+        originSeries?.setVisible(false, false);
       } else if (mode === 'sell') {
-        chart.series.forEach(s => s.id === 'sell-series' ? s.show() : s.hide());
+        buySeries?.setVisible(false, false);
+        sellSeries?.setVisible(true, false);
+        spreadSeries?.setVisible(false, false);
+        originSeries?.setVisible(false, false);
+      } else if (mode === 'origin') {
+        buySeries?.setVisible(false, false);
+        sellSeries?.setVisible(false, false);
+        spreadSeries?.setVisible(false, false);
+        originSeries?.setVisible(true, false);
       } else { // mix
-        chart.series.forEach(s => s.show());
+        buySeries?.setVisible(true, false);
+        sellSeries?.setVisible(true, false);
+        spreadSeries?.setVisible(true, false);
+        originSeries?.setVisible(false, false);
       }
+
+      // Keep navigator in sync with the currently visible primary series so the mini-chart does not disappear
+      const baseSeriesId = mode === 'sell' ? 'sell-series' : (mode === 'origin' ? 'origin-series' : 'buy-series');
+      if (chart.navigator) {
+        chart.update({ navigator: { baseSeries: baseSeriesId } }, false);
+      }
+
+      chart.redraw();
     } catch (e) {
       console.warn('Failed to update series visibility', e);
     }
@@ -789,9 +879,19 @@ export default function Home() {
             </label>
 
             <div className="mode-control">
-              <label className={`mode-btn ${mode === 'buy' ? 'active' : ''}`} onClick={() => setMode('buy')}>{t('home.modeBuy')}</label>
-              <label className={`mode-btn ${mode === 'sell' ? 'active' : ''}`} onClick={() => setMode('sell')}>{t('home.modeSell')}</label>
-              <label className={`mode-btn ${mode === 'mix' ? 'active' : ''}`} onClick={() => setMode('mix')}>{t('home.modeMix')}</label>
+              <button type="button" className={`mode-btn ${mode === 'buy' ? 'active' : ''}`} onClick={() => handleModeChange('buy')}>{t('home.modeBuy')}</button>
+              <button type="button" className={`mode-btn ${mode === 'sell' ? 'active' : ''}`} onClick={() => handleModeChange('sell')}>{t('home.modeSell')}</button>
+              <button type="button" className={`mode-btn ${mode === 'mix' ? 'active' : ''}`} onClick={() => handleModeChange('mix')}>{t('home.modeMix')}</button>
+              {user && (
+                <button
+                  type="button"
+                  className={`mode-btn ${mode === 'origin' ? 'active' : ''}`}
+                  onClick={() => handleModeChange('origin')}
+                  title={!user ? t('home.originAuthRequired') : ''}
+                >
+                  {t('home.modeOrigin')}
+                </button>
+              )}
             </div>
           </div>
         </section>
@@ -806,6 +906,7 @@ export default function Home() {
             <HighchartsReact
               highcharts={Highcharts}
               constructorType={'stockChart'}
+              key={chartInstanceKey}
               options={chartOptions}
               ref={chartRef}
             />
@@ -829,6 +930,14 @@ export default function Home() {
               <div className="value">{latestRates ? (Number.isFinite(latestRates.sell) ? latestRates.sell.toFixed(6) : '—') : '—'}</div>
               <div className="date">{latestRates ? new Date(latestRates.ts).toLocaleDateString() : ''}</div>
             </div>
+
+            {user && (
+              <div className="currency-point-card">
+                <div className="label">{t('home.latestOrigin')}</div>
+                <div className="value">{latestRates ? (Number.isFinite(latestRates.origin) ? latestRates.origin.toFixed(6) : '—') : '—'}</div>
+                <div className="date">{latestRates ? (latestRates.originTs ? new Date(latestRates.originTs).toLocaleDateString() : (latestRates.ts ? new Date(latestRates.ts).toLocaleDateString() : '')) : ''}</div>
+              </div>
+            )}
 
             {/* <div className="currency-point-note">{latestRates ? `Last data: ${new Date(latestRates.ts).toLocaleString()}` : 'No recent data available'}</div> */}
           </div>
