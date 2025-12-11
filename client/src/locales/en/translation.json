@@ -120,6 +120,28 @@
     "errorMissingRateId": "Cannot update: missing rate row id (refresh data)",
     "errorUpdateFailed": "Update failed"
   },
+  "marginTable": {
+    "title": "Margin table",
+    "loading": "Loading...",
+    "errorLoad": "Failed to load margins",
+    "colId": "ID",
+    "colMargin": "Margin",
+    "colStartDate": "Start date",
+    "colEndDate": "End date",
+    "colStatus": "Status",
+    "colCreatedBy": "Created by",
+    "noData": "No margins found",
+    "statusActive": "Active",
+    "statusScheduled": "Scheduled",
+    "statusExpired": "Expired",
+    "userFallback": "User #{{id}}",
+    "showing": "Showing {{from}} - {{to}} of {{total}}",
+    "first": "First",
+    "prev": "Prev",
+    "next": "Next",
+    "last": "Last",
+    "page": "Page {{page}} of {{total}}"
+  },
   "createCurrency": {
     "label": "Currency code",
     "placeholder": "ABC",

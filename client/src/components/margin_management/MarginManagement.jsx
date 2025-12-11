@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import Header from '../Header';
 import { useAuth } from '../AuthContext';
+import MarginTable from './MarginTable';
+import './MarginManagement.css';
 
 // Simple scaffold mirroring the CurrencyManagement layout, but for margin workflows.
 export default function MarginManagement() {
-	const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'configure'
+	const [activeTab, setActiveTab] = useState('table'); // 'table' | 'chart'
 	const { user } = useAuth();
 	const isAdmin = !!(user && ((user.Role).toString().toLowerCase() === 'admin'));
 
@@ -20,21 +22,19 @@ export default function MarginManagement() {
 					<div className="headline">Margin Management</div>
 					<div className="tabs-row" style={{ display: 'flex', gap: '8px', marginTop: 0 }}>
 						<button
-							className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-							onClick={() => setActiveTab('overview')}
+							className={`tab-btn ${activeTab === 'table' ? 'active' : ''}`}
+							onClick={() => setActiveTab('table')}
 							style={{ padding: '6px 8px' }}
 						>
-							Margin overview
+							Margin table
 						</button>
-						{isAdmin && (
-							<button
-								className={`tab-btn ${activeTab === 'configure' ? 'active' : ''}`}
-								onClick={() => setActiveTab('configure')}
+						<button
+								className={`tab-btn ${activeTab === 'chart' ? 'active' : ''}`}
+								onClick={() => setActiveTab('chart')}
 								style={{ padding: '6px 8px' }}
 							>
-								Configure margins
+								Margin Chart
 							</button>
-						)}
 						{/*
 						<button
 							className={`tab-btn ${activeTab === 'export' ? 'active' : ''}`}
@@ -48,30 +48,9 @@ export default function MarginManagement() {
 				</section>
 
 				<section style={{ padding: '16px', display: 'grid', gap: '16px' }}>
-					{activeTab === 'overview' && (
-						<div className="section-block" style={{ display: 'grid', gap: '12px' }}>
-							<div>
-								<h3 style={{ marginBottom: '4px' }}>Current margins</h3>
-								<p style={{ margin: 0 }}>
-									Placeholder area for listing existing margin configurations and their effective dates.
-								</p>
-							</div>
-							<div>
-								<h3 style={{ marginBottom: '4px' }}>Rules and conditions</h3>
-								<p style={{ margin: 0 }}>
-									Use this section to outline how margins are applied (by currency, product type, or channel).
-								</p>
-							</div>
-							<div>
-								<h3 style={{ marginBottom: '4px' }}>Recent updates</h3>
-								<p style={{ margin: 0 }}>
-									Space to show the latest margin changes and who applied them.
-								</p>
-							</div>
-						</div>
-					)}
+					{activeTab === 'table' && <MarginTable />}
 
-					{isAdmin && activeTab === 'configure' && (
+					{activeTab === 'chart' && (
 						<div className="section-block" style={{ display: 'grid', gap: '12px' }}>
 							<div>
 								<h3 style={{ marginBottom: '4px' }}>Create or edit margin</h3>

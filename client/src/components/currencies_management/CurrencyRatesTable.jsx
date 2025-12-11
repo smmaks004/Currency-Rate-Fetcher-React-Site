@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../AuthContext';
+import '../common/TableStyles.css';
 import './CurrencyRatesTable.css';
 
 import ExportTable from './subsections/ExportTable';
@@ -445,7 +446,7 @@ export default function CurrencyRatesTable() {
         </div>
       </div>
 
-      <div className="table-wrapper">
+      <div className="table-wrapper table-surface">
         {isLoading && (
           <div className="table-loading">
             <div className="spinner" aria-hidden="true" />

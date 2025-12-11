@@ -120,6 +120,28 @@
     "errorMissingRateId": "Nevar atjaunināt: trūkst kursa ieraksta ID (atjaunojiet datus)",
     "errorUpdateFailed": "Atjaunināšana neizdevās"
   },
+  "marginTable": {
+    "title": "Maržu tabula",
+    "loading": "Ielādē...",
+    "errorLoad": "Neizdevās ielādēt maržas",
+    "colId": "ID",
+    "colMargin": "Marža",
+    "colStartDate": "Sākuma datums",
+    "colEndDate": "Beigu datums",
+    "colStatus": "Statuss",
+    "colCreatedBy": "Izveidoja",
+    "noData": "Maržas nav atrastas",
+    "statusActive": "Aktīva",
+    "statusScheduled": "Plānota",
+    "statusExpired": "Beigusies",
+    "userFallback": "Lietotājs #{{id}}",
+    "showing": "Rāda {{from}} - {{to}} no {{total}}",
+    "first": "Pirmā",
+    "prev": "Iepriekšējā",
+    "next": "Nākamā",
+    "last": "Pēdējā",
+    "page": "Lapa {{page}} no {{total}}"
+  },
   "createCurrency": {
     "label": "Valūtas kods",
     "placeholder": "ABC",
