@@ -1,0 +1,99 @@
+/* MarginChart.css */
+
+.margin-chart-container {
+  width: 100%;
+}
+
+.chart-card {
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.chart-header {
+  margin-bottom: 16px;
+}
+
+.chart-header h3 {
+  color: #e2e8f0;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.chart-sub {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.chart-area {
+  background: rgba(11, 15, 24, 0.6);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.latest-margin-info {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.margin-info-card {
+  flex: 1;
+  min-width: 200px;
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 12px;
+  padding: 16px;
+
+  border-left: 4px solid #0ea5e9;
+  border-right: 4px solid #0ea5e9;
+}
+
+.margin-info-card .label {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.margin-info-card .value {
+  color: #e2e8f0;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.margin-info-card .date-range {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.error {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chart-card {
+    padding: 16px;
+  }
+
+  .latest-margin-info {
+    flex-direction: column;
+  }
+
+  .margin-info-card {
+    min-width: 100%;
+  }
+}

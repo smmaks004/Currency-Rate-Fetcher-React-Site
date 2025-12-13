@@ -4,6 +4,7 @@ import './Converter.css';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import enGB from 'date-fns/locale/en-GB';
 import 'react-datepicker/dist/react-datepicker.css';
+import { calculateSellRate } from '../utils/currencyCalculations';
 registerLocale('en-GB', enGB);
 
 // =======================================================================
@@ -140,8 +141,8 @@ export default function ConverterPage() {
         const baseTo = rTo.rate.rate; const baseFrom = rFrom.rate.rate;
         const marginTo = rTo.rate.margin || 0; const marginFrom = rFrom.rate.margin || 0;
 
-        // ONLY BID (Sell) used now: how many 'to' units you get when selling 1 'from' unit
-        const sell = (baseTo * (1 - (marginTo || 0) / 2)) / (baseFrom * (1 + (marginFrom || 0) / 2));
+        // Calculate sell rate using utility function now
+        const sell = calculateSellRate(baseTo, baseFrom, marginTo, marginFrom);
 
         let usedDate = null;
         if (rTo.usedKey === rFrom.usedKey) usedDate = rTo.usedKey;

@@ -120,6 +120,11 @@
     "errorMissingRateId": "Cannot update: missing rate row id (refresh data)",
     "errorUpdateFailed": "Update failed"
   },
+  "marginManagement": {
+    "title": "Margin Management",
+    "tabTable": "Margin table",
+    "tabChart": "Margin Chart"
+  },
   "marginTable": {
     "title": "Margin table",
     "loading": "Loading...",
@@ -140,7 +145,35 @@
     "prev": "Prev",
     "next": "Next",
     "last": "Last",
-    "page": "Page {{page}} of {{total}}"
+    "page": "Page {{page}} of {{total}}",
+    "createNew": "Create New +"
+  },
+  "marginChart": {
+    "title": "Margin History",
+    "loading": "Loading...",
+    "errorLoad": "Failed to load margin history",
+    "margin": "Margin",
+    "marginPercent": "Margin %",
+    "currentMargin": "Current Margin",
+    "from": "From",
+    "to": "to",
+    "rangeAll": "All"
+  },
+  "createMargin": {
+    "title": "Create New Margin",
+    "marginLabel": "Margin Percentage (0-100)",
+    "marginPlaceholder": "e.g. 20.5",
+    "startDateLabel": "Start Date",
+    "endDateLabel": "End Date (Optional)",
+    "cancel": "Cancel",
+    "create": "Create",
+    "creating": "Creating...",
+    "confirmOverwrite": "Confirm & Overwrite",
+    "errorMarginRequired": "Margin Value and Start Date are required.",
+    "errorFutureDate": "Start date cannot be in the future.",
+    "errorMarginRange": "Margin must be between 0 and 100.",
+    "errorConflict": "Failed to create margin",
+    "warningConflict": "Warning: This period overlaps with an existing margin. If you confirm, the previous margin will be cut short automatically (set to end yesterday)."
   },
   "createCurrency": {
     "label": "Currency code",

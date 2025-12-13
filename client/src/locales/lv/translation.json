@@ -120,6 +120,11 @@
     "errorMissingRateId": "Nevar atjaunināt: trūkst kursa ieraksta ID (atjaunojiet datus)",
     "errorUpdateFailed": "Atjaunināšana neizdevās"
   },
+  "marginManagement": {
+    "title": "Maržu pārvaldība",
+    "tabTable": "Maržu tabula",
+    "tabChart": "Maržu diagramma"
+  },
   "marginTable": {
     "title": "Maržu tabula",
     "loading": "Ielādē...",
@@ -140,7 +145,35 @@
     "prev": "Iepriekšējā",
     "next": "Nākamā",
     "last": "Pēdējā",
-    "page": "Lapa {{page}} no {{total}}"
+    "page": "Lapa {{page}} no {{total}}",
+    "createNew": "Izveidot jaunu +"
+  },
+  "marginChart": {
+    "title": "Maržas vēsture",
+    "loading": "Ielādē...",
+    "errorLoad": "Neizdevās ielādēt maržas vēsturi",
+    "margin": "Marža",
+    "marginPercent": "Marža %",
+    "currentMargin": "Pašreizējā marža",
+    "from": "No",
+    "to": "līdz",
+    "rangeAll": "Viss"
+  },
+  "createMargin": {
+    "title": "Izveidot jaunu maržu",
+    "marginLabel": "Maržas procenti (0-100)",
+    "marginPlaceholder": "piem. 20.5",
+    "startDateLabel": "Sākuma datums",
+    "endDateLabel": "Beigu datums (izvēlne)",
+    "cancel": "Atcelt",
+    "create": "Izveidot",
+    "creating": "Veidojās...",
+    "confirmOverwrite": "Apstiprināt un pārrakstīt",
+    "errorMarginRequired": "Maržas vērtība un sākuma datums ir obligāti.",
+    "errorFutureDate": "Sākuma datums nevar būt nākotnē.",
+    "errorMarginRange": "Marža jābūt starp 0 un 100.",
+    "errorConflict": "Neizdevās izveidot maržu",
+    "warningConflict": "Brīdinājums: Šis periods pārklājas ar esošo maržu. Ja apstiprināsiet, iepriekšējā marža tiks automātiski saīsināta (beigsies vakar)."
   },
   "createCurrency": {
     "label": "Valūtas kods",

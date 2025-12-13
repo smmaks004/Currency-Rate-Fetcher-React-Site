@@ -9,6 +9,7 @@ import './Home.css';
 import Header from './Header';
 import { useAuth } from './AuthContext';
 import { useTranslation } from 'react-i18next';
+import { calculatePairRates } from '../utils/currencyCalculations';
 
 // Creates a debounced callback: delays invocation until 'wait' ms after the last call. 
 // The returned function includes a 'cancel' method to abort a pending invocation.
@@ -270,19 +271,10 @@ export default function Home() {
           const marginTo = aa.margin || 0;
           const marginFrom = bb.margin || 0;
 
-          // Calculate Buy rate
-          const eurTo_sell = baseTo * (1 + (marginTo || 0) / 2);
-          const eurFrom_buy = baseFrom * (1 - (marginFrom || 0) / 2);
-          const buy = eurTo_sell / eurFrom_buy;
+          // Calculate rates using utility function
+          const rates = calculatePairRates(baseTo, baseFrom, marginTo, marginFrom);
 
-          // Calculate Sell rate
-          const eurTo_buy = baseTo * (1 - (marginTo || 0) / 2);
-          const eurFrom_sell = baseFrom * (1 + (marginFrom || 0) / 2);
-          const sell = eurTo_buy / eurFrom_sell;
-
-          const originVal = baseFrom ? Number(baseTo / baseFrom) : null;
-
-          found = { buy: Number(buy), sell: Number(sell), origin: originVal, ts, originTs: ts };
+          found = { buy: rates.buy, sell: rates.sell, origin: rates.origin, ts, originTs: ts };
           break;
         }
 
@@ -374,19 +366,12 @@ export default function Home() {
         const marginTo = aa.margin || 0;
         const marginFrom = bb.margin || 0;
 
-        // Compute pair Buy and Sell using provided margin conventions
-        const eurTo_sell = baseTo * (1 + (marginTo || 0) / 2);
-        const eurFrom_buy = baseFrom * (1 - (marginFrom || 0) / 2);
-        const buy = eurTo_sell / eurFrom_buy;
+        // Compute pair Buy and Sell using utility function
+        const rates = calculatePairRates(baseTo, baseFrom, marginTo, marginFrom);
 
-        const eurTo_buy = baseTo * (1 - (marginTo || 0) / 2);
-        const eurFrom_sell = baseFrom * (1 + (marginFrom || 0) / 2);
-        const sell = eurTo_buy / eurFrom_sell;
-
-        buyPoints.push([ts, Number(buy)]);
-        sellPoints.push([ts, Number(sell)]);
-        const originVal = baseFrom ? Number(baseTo / baseFrom) : null;
-        originPoints.push([ts, originVal]);
+        buyPoints.push([ts, rates.buy]);
+        sellPoints.push([ts, rates.sell]);
+        originPoints.push([ts, rates.origin]);
       } else {
         // Outside requested range -> null to keep axis stable
         buyPoints.push([ts, null]);

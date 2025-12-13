@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../AuthContext';
 import '../common/TableStyles.css';
 import './CurrencyRatesTable.css';
+import { calculatePairRates } from '../../utils/currencyCalculations';
 
 import ExportTable from './subsections/ExportTable';
 
@@ -207,18 +208,13 @@ export default function CurrencyRatesTable() {
           const marginTo = toVal.margin || 0;
           const marginFrom = fromVal.margin || 0;
 
-          const ecb = baseTo / baseFrom;
-          const eurTo_sell = baseTo * (1 + (marginTo || 0) / 2);
-          const eurFrom_buy = baseFrom * (1 - (marginFrom || 0) / 2);
-          const buy = eurTo_sell / eurFrom_buy;
-          const eurTo_buy = baseTo * (1 - (marginTo || 0) / 2);
-          const eurFrom_sell = baseFrom * (1 + (marginFrom || 0) / 2);
-          const sell = eurTo_buy / eurFrom_sell;
+          // Calculate rates using utility function
+          const rates = calculatePairRates(baseTo, baseFrom, marginTo, marginFrom);
 
           const [yy, mm, dd] = key.split('-').map(Number);
           const date = new Date(yy, mm - 1, dd);
 
-          rowsAcc.push({ fromId: from.Id, toId: to.Id, from: fromCode, to: toCode, ecb: Number(ecb), sell: Number(sell), buy: Number(buy), date, dateKey: key, toRateId: toVal && toVal.id ? toVal.id : null, fromRateId: fromVal && fromVal.id ? fromVal.id : null });
+          rowsAcc.push({ fromId: from.Id, toId: to.Id, from: fromCode, to: toCode, ecb: rates.origin, sell: rates.sell, buy: rates.buy, date, dateKey: key, toRateId: toVal && toVal.id ? toVal.id : null, fromRateId: fromVal && fromVal.id ? fromVal.id : null });
         }
       }
     }
