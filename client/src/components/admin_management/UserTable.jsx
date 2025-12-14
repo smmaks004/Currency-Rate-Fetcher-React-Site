@@ -57,7 +57,7 @@ export default function UserTable() {
 
 		(async () => {
 			try {
-				const res = await fetch('http://localhost:4000/api/users', { credentials: 'include', signal: controller.signal });
+				const res = await fetch('/api/users', { credentials: 'include', signal: controller.signal });
 				if (!res.ok) {
 					const payload = await res.json().catch(() => ({}));
 					throw new Error(payload && payload.error ? payload.error : 'Failed to load users');
@@ -175,7 +175,7 @@ export default function UserTable() {
 				isDeleted: actionModal.mode === 'deactivate' ? 1 : 0,
 			};
 
-			const res = await fetch('http://localhost:4000/api/users/delete-user', {
+			const res = await fetch('/api/users/delete-user', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload),
@@ -207,7 +207,7 @@ export default function UserTable() {
 				role: roleModal.role,
 			};
 
-			const res = await fetch('http://localhost:4000/api/users/change-role', {
+			const res = await fetch('/api/users/change-role', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload),

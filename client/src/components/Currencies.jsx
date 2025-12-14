@@ -6,7 +6,7 @@ export default function Currencies() {
   const { t } = useTranslation();
 
 useEffect(() => {
-  fetch('http://localhost:4000/api/currencies')
+  fetch('/api/currencies')
     .then(res => res.json())
     .then(data => {
       console.log('Currencies:', data); // check which fields are actually present

@@ -93,7 +93,7 @@ export default function Home() {
 
     const load = async (attempt = 1) => {
       try {
-        const res = await fetch('http://localhost:4000/api/currencies');
+        const res = await fetch('/api/currencies');
         if (!res.ok) throw new Error('currencies fetch failed');
         const d = await res.json();
         if (cancelled) return;
@@ -128,7 +128,7 @@ export default function Home() {
   const fetchRates = useCallback(async (currencyId) => {
     try {
       // backend returns full history for GET /api/rates/:currencyId
-      const url = `http://localhost:4000/api/rates/${currencyId}`;
+      const url = `/api/rates/${currencyId}`;
       const res = await fetch(url);
       if (!res.ok) {
         logDebug(`fetchRates failed ${currencyId} status=${res.status}`);

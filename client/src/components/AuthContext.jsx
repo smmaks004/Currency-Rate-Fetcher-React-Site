@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
     // didRunRef.current = true;
     const checkUser = async () => {
       try {
-        const res = await fetch('http://localhost:4000/api/auth/me', { credentials: 'include' });
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (res.ok) {
           const userData = await res.json();
           setUser(userData);
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
     if (refresh) {
       try {
-        const res = await fetch('http://localhost:4000/api/auth/me', { credentials: 'include' });
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (res.ok) {
           const u = await res.json();
           setUser(u);
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
 
   const refreshUser = async () => {
     try {
-      const res = await fetch('http://localhost:4000/api/auth/me', { credentials: 'include' });
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
       if (res.ok) {
         const u = await res.json();
         setUser(u);
@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-        await fetch('http://localhost:4000/api/auth/logout', { method: 'POST', credentials: 'include' });
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch(e) { }
     setUser(null);
   };

@@ -66,7 +66,7 @@ export default function CreateMargin({ isOpen, onClose, onSuccess }) {
         forceCreate: force
       };
 
-      const res = await fetch('http://localhost:4000/api/margins/create', {
+      const res = await fetch('/api/margins/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

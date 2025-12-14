@@ -42,7 +42,7 @@ export default function MarginTable() {
   const fetchMargins = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:4000/api/margins', { credentials: 'include' });
+      const res = await fetch('/api/margins', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       setMargins(Array.isArray(data) ? data : []);

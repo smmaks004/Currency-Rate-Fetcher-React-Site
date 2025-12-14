@@ -26,7 +26,7 @@ export default function CreateCurrency() {
     }
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:4000/api/update/update-createCurrency', {
+      const res = await fetch('/api/update/update-createCurrency', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

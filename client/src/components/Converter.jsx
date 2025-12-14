@@ -73,7 +73,7 @@ export default function ConverterPage() {
         let cancelled = false;
         (async () => {
             try {
-                const res = await fetch('http://localhost:4000/api/currencies');
+                const res = await fetch('/api/currencies');
                 if (!res.ok) throw new Error('Failed to load currencies');
                 const d = await res.json();
                 if (cancelled) return;
@@ -95,7 +95,7 @@ export default function ConverterPage() {
         if (cacheRef.current[currencyId]?.loaded) return cacheRef.current[currencyId].map;
         cacheRef.current[currencyId] = { loaded: false, map: new Map() };
         try {
-            const res = await fetch(`http://localhost:4000/api/rates/${currencyId}`);
+            const res = await fetch(`/api/rates/${currencyId}`);
             if (!res.ok) return new Map();
             const rows = await res.json();
             const map = new Map();

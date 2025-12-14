@@ -38,7 +38,7 @@ export default function Profile() {
     }
     setSaving(true);
     try {
-      const res = await fetch('http://localhost:4000/api/update/update-profile', {
+      const res = await fetch('/api/update/update-profile', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -66,7 +66,7 @@ export default function Profile() {
     if (password !== confirmPassword) { setPwMessage({ text: t('profile.passwordMismatch'), kind: 'error' }); return; }
     setPwSaving(true);
     try {
-      const res = await fetch('http://localhost:4000/api/auth/change-password', {
+      const res = await fetch('/api/auth/change-password', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

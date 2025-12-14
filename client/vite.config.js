@@ -18,5 +18,11 @@ export default defineConfig({
       'desktop-mbp34on.tail599557.ts.net',
       '.ts.net', // Allow all Tailscale hosts
     ],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
+    },
   },
 })

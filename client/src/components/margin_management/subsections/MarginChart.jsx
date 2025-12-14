@@ -58,7 +58,7 @@ export default function MarginChart() {
 
     const load = async (attempt = 1) => {
       try {
-        const res = await fetch('http://localhost:4000/api/margins/history', { credentials: 'include' });
+        const res = await fetch('/api/margins/history', { credentials: 'include' });
         if (!res.ok) throw new Error('margins history fetch failed');
         const data = await res.json();
         if (cancelled) return;

@@ -68,7 +68,7 @@ export default function CurrencyRatesTable() {
     setCurrenciesLoading(true);
     (async () => {
       try {
-        const res = await fetch('http://localhost:4000/api/currencies');
+        const res = await fetch('/api/currencies');
         if (!res.ok) throw new Error('Failed to load currencies');
         const d = await res.json();
         if (cancelled) return;
@@ -110,7 +110,7 @@ export default function CurrencyRatesTable() {
     (async () => {
       try {
         const ids = currencies.map(c => c.Id).join(',');
-        const url = `http://localhost:4000/api/rates/bulk?ids=${encodeURIComponent(ids)}`;
+        const url = `/api/rates/bulk?ids=${encodeURIComponent(ids)}`;
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error('Failed to load rates');
         const payload = await res.json();
@@ -303,7 +303,7 @@ export default function CurrencyRatesTable() {
       // Strict mode: require specific CurrencyRates row id
       const rateRowId = row.toRateId || null;
       if (!rateRowId) { setError(t('currencyTable.errorMissingRateId')); setEditingKey(null); return; }
-      const res = await fetch('http://localhost:4000/api/update/update-ecbRate', {
+      const res = await fetch('/api/update/update-ecbRate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', ////

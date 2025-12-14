@@ -77,7 +77,7 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 				role: role
 			};
 
-			const res = await fetch('http://localhost:4000/api/users/create', {
+			const res = await fetch('/api/users/create', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload),
