@@ -2,7 +2,7 @@
 .table-wrapper {
   position: relative;
   overflow-x: auto;
-  min-height: 180px;
+  /* min-height: 180px; */
 }
 
 /* Carded surface to visually separate tables from the page background */

@@ -46,6 +46,10 @@ export default function Header() {
             <Link to="/margin_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
               Margin management
             </Link>
+
+            <Link to="/admin_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
+              Admin Management
+            </Link>
           </div>
           
         )}

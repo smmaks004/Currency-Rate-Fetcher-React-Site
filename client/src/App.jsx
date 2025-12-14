@@ -1,12 +1,15 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+import PrivateRoute from './routes/PrivateRoute';
+import PublicRoute from './routes/PublicRoute';
+
 import Login from './components/Login';
-import PublicRoute from './components/PublicRoute';
 import Home from './components/Home';
-import PrivateRoute from './components/PrivateRoute'; ///
 import Profile from './components/Profile';
 import CurrencyManagement from './components/currencies_management/CurrencyManagement';
 import MarginManagement from './components/margin_management/MarginManagement'; //////////
+import AdminManagement from './components/admin_management/AdminManagement';
 import './App.css';
 
 import { AuthProvider } from './components/AuthContext'; ///
@@ -36,6 +39,12 @@ function App() {
           <Route path="/margin_management" element={
             <PrivateRoute>
               <MarginManagement />
+            </PrivateRoute>
+          } />
+
+          <Route path="/admin_management" element={
+            <PrivateRoute>
+              <AdminManagement />
             </PrivateRoute>
           } />
 

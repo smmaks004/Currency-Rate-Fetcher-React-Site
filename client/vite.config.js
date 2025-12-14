@@ -10,4 +10,13 @@ export default defineConfig({
       },
     }),
   ],
+
+
+  // FOR HTTPS WITH TAILSCALE HOSTNAMES
+  server: {
+    allowedHosts: [
+      'desktop-mbp34on.tail599557.ts.net',
+      '.ts.net', // Allow all Tailscale hosts
+    ],
+  },
 })

@@ -445,7 +445,7 @@ export default function MarginChart() {
 
   return (
     <div className="margin-chart-container">
-      <div className="chart-card">
+      <div className="margin-chart-card">
         <div className="chart-header">
           <h3>{t('marginChart.title', { defaultValue: 'Margin History' })}</h3>
         </div>

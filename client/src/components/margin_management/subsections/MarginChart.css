@@ -4,11 +4,11 @@
   width: 100%;
 }
 
-.chart-card {
-  background: rgba(15, 23, 42, 0.85);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+.margin-chart-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 6px 30px rgba(9,12,20,0.6);
 }
 
 .chart-header {
@@ -85,7 +85,7 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .chart-card {
+  .margin-chart-card {
     padding: 16px;
   }
 

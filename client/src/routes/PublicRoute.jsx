@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../components/AuthContext';
 
 // PublicRoute: renders children only for NOT-authenticated users.
 
