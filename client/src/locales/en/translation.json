@@ -66,7 +66,11 @@
     "errorCalc": "Calculation error",
     "result": "Selling {{fromVal}} {{fromCode}} gets you {{toVal}} {{toCode}}",
     "rateApplied": "Rate applied: 1 {{fromCode}} = {{rate}} {{toCode}}",
-    "ratesTaken": "Rates taken from: {{date}}"
+    "ratesTaken": "Rates taken from: {{date}}",
+    "paySandbox": "Pay (sandbox)",
+    "payRedirecting": "Redirecting...",
+    "payInitFailed": "Failed to start payment",
+    "payConfirm": "Proceed to Stripe sandbox payment?\n\nPay {{fromVal}} {{fromCode}} to get {{toVal}} {{toCode}}"
   },
   "home": {
     "from": "From",

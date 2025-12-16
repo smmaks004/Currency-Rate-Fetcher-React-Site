@@ -66,7 +66,11 @@
     "errorCalc": "Aprēķina kļūda",
     "result": "Pārdodot {{fromVal}} {{fromCode}} jūs saņemsiet {{toVal}} {{toCode}}",
     "rateApplied": "Pielietotais kurss: 1 {{fromCode}} = {{rate}} {{toCode}}",
-    "ratesTaken": "Kursi ņemti no: {{date}}"
+    "ratesTaken": "Kursi ņemti no: {{date}}",
+    "paySandbox": "Maksāt (sandbox)",
+    "payRedirecting": "Novirza...",
+    "payInitFailed": "Neizdevās sākt maksājumu",
+    "payConfirm": "Turpināt ar Stripe sandbox maksājumu?\n\nMaksāt {{fromVal}} {{fromCode}}, lai saņemtu {{toVal}} {{toCode}}"
   },
   "home": {
     "from": "No",

@@ -131,5 +131,32 @@ input[type=number]::-webkit-inner-spin-button {
 .conv-result-title { font-size: 18px; margin-bottom: 5px; }
 .conv-error { color: #ff6b6b; }
 
+
+
+
+
+
+
+.conv-pay-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.conv-pay-btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.conv-pay-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+
+
+
 /* Hide spinner */
 input[type=number] { appearance: textfield; -moz-appearance: textfield; }

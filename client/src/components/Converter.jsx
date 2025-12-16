@@ -66,6 +66,8 @@ export default function ConverterPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const [payLoading, setPayLoading] = useState(false); ////
+
     const cacheRef = useRef({});
 
     // --- Load currencies ---
@@ -212,6 +214,59 @@ export default function ConverterPage() {
     const fromCode = currencies.find(c => c.Id === fromId)?.CurrencyCode || '—';
     const toCode = currencies.find(c => c.Id === toId)?.CurrencyCode || '—';
 
+    const startStripeCheckout = async () => {
+        setError('');
+        if (!fromId || !toId) return;
+        if (loading || payLoading) return;
+
+        const fromVal = Number(result?.valFrom);
+        const toVal = Number(result?.valTo);
+        const usedRate = Number(result?.usedRate);
+
+        if (!Number.isFinite(fromVal) || fromVal <= 0 || !Number.isFinite(toVal) || toVal <= 0 || !Number.isFinite(usedRate) || usedRate <= 0) {
+            setError(t('converter.errorCalc'));
+            return;
+        }
+
+        const summary = t('converter.payConfirm', {
+            fromVal: fromVal,
+            fromCode,
+            toVal: toVal,
+            toCode
+        });
+
+        if (!window.confirm(summary)) return;
+
+        setPayLoading(true);
+        try {
+            const res = await fetch('/api/payments/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    fromCode,
+                    toCode,
+                    amountFrom: fromVal,
+                    amountTo: toVal,
+                    rate: usedRate,
+                    usedDate: result?.usedDate || null
+                })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data || !data.url) {
+                setError((data && data.error) ? String(data.error) : t('converter.payInitFailed'));
+                setPayLoading(false);
+                return;
+            }
+
+            window.location.href = data.url;
+        } catch (e) {
+            setError(t('converter.payInitFailed'));
+            setPayLoading(false);
+        }
+    };
+
     // Input handlers
     const handleFromChange = (e) => {
         const raw = e.target.value;
@@ -343,6 +398,18 @@ export default function ConverterPage() {
                             )}
                         </div>
                     )}
+                </div>
+
+                <div className="conv-pay-row">
+                    <button
+                        type="button"
+                        className="conv-btn conv-pay-btn"
+                        onClick={startStripeCheckout}
+                        disabled={loading || payLoading || !!error || fromCode === '—' || toCode === '—'}
+                        title={t('converter.paySandbox')}
+                    >
+                        {payLoading ? t('converter.payRedirecting') : t('converter.paySandbox')}
+                    </button>
                 </div>
 
             </div>
