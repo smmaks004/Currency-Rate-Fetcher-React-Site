@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const cookieParser = require('cookie-parser'); ///
-require('dotenv').config();
+const cookieParser = require('cookie-parser');
+const path = require('node:path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env'), override: true });
 
 const currenciesRouter = require('./routes/currencies');
 const ratesRouter = require('./routes/rates');
@@ -9,14 +10,21 @@ const authRouter = require('./routes/auth');
 const updateRouter = require('./routes/update');
 const marginsRouter = require('./routes/margins');
 const usersRouter = require('./routes/users');
+const aiRouter = require('./routes/ai');
+
+const payments = require('./routes/payments');
 
 const app = express();
 app.use(cors({
   origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
   credentials: true
 }));
+app.use(cookieParser());
+
+// Stripe webhook must receive the raw request body (do this BEFORE express.json())
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), payments.handleStripeWebhook);
+
 app.use(express.json());
-app.use(cookieParser());////
 
 app.use('/api/currencies', currenciesRouter);
 app.use('/api/rates', ratesRouter);
@@ -24,6 +32,9 @@ app.use('/api/auth', authRouter);
 app.use('/api/update', updateRouter);
 app.use('/api/margins', marginsRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/ai', aiRouter);
+
+app.use('/api/payments', payments.router);
 
 // Lightweight health check for debugging CORS / network issues
 app.get('/api/health', (req, res) => {

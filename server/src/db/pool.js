@@ -1,6 +1,7 @@
 // mysql2 + promise
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+const path = require('node:path');
+require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,    // IP/hostname of the Linux server

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
@@ -22,6 +22,27 @@ export default function Profile() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState({ text: '', kind: null });
   const { t } = useTranslation();
+
+  // AI chat (Ollama)
+  const [aiMessages, setAiMessages] = useState([
+    { role: 'system', content: 'You are a helpful assistant.' }
+  ]);
+  const [aiInput, setAiInput] = useState('');
+  const [aiSending, setAiSending] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  const aiWordQueueRef = useRef([]);
+  const aiFlushTimerRef = useRef(null);
+
+
+  useEffect(() => {
+    return () => {
+      if (aiFlushTimerRef.current) {
+        clearInterval(aiFlushTimerRef.current);
+        aiFlushTimerRef.current = null;
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     setFirstName(user?.FirstName || '');
@@ -88,7 +109,119 @@ export default function Profile() {
     }
   };
 
-  
+  const handleUnauthorized = async (setErr, fallbackPrefix = 'Unauthorized') => {
+    setErr(`${fallbackPrefix}: please log in again.`);
+    try { await refreshUser(); } catch { /* ignore */ }
+    navigate('/login');
+  };
+
+  const onSendAi = async () => {
+    const text = aiInput.trim();
+    if (!text || aiSending) return;
+
+    setAiError('');
+    setAiSending(true);
+
+    const assistantId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const nextMessages = [...aiMessages, { role: 'user', content: text }, { role: 'assistant', content: '', id: assistantId }];
+    setAiMessages(nextMessages);
+    setAiInput('');
+
+    const tokenize = (s) => (typeof s === 'string' ? s.split(/(\s+)/).filter(Boolean) : []);
+
+    const ensureFlushTimer = () => {
+      if (aiFlushTimerRef.current) return;
+      aiFlushTimerRef.current = setInterval(() => {
+        const part = aiWordQueueRef.current.shift();
+        if (!part) {
+          // Stop timer if nothing to flush
+          clearInterval(aiFlushTimerRef.current);
+          aiFlushTimerRef.current = null;
+          return;
+        }
+
+        setAiMessages((prev) => prev.map((m) => {
+          if (m && m.id === assistantId) return { ...m, content: (m.content || '') + part };
+          return m;
+        }));
+      }, 35);
+    };
+
+    try {
+      const res = await fetch('/api/ai/chat-stream', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: nextMessages.filter((m) => m.role !== 'assistant' || m.id !== assistantId) })
+      });
+
+      if (res.status === 401) {
+        const err = await res.json().catch(() => null);
+        const msg = err && err.error ? err.error : 'Unauthorized';
+        await handleUnauthorized(setAiError, msg);
+        return;
+      }
+
+      if (!res.ok || !res.body) {
+        const bodyText = await res.text().catch(() => '');
+        setAiError(bodyText || 'AI request failed');
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buf = '';
+      let sawAnyDelta = false;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buf += decoder.decode(value, { stream: true });
+        while (true) {
+          const nl = buf.indexOf('\n');
+          if (nl === -1) break;
+
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+
+          let obj = null;
+          try { obj = JSON.parse(line); } catch { obj = null; }
+          if (!obj) continue;
+
+          if (obj.error) {
+            setAiError(typeof obj.details === 'string' && obj.details ? `${obj.error}: ${obj.details}` : obj.error);
+            return;
+          }
+
+          if (obj.delta) {
+            sawAnyDelta = true;
+            aiWordQueueRef.current.push(...tokenize(obj.delta));
+            ensureFlushTimer();
+          }
+
+          if (obj.done) {
+            // Keep flushing remaining queue
+            ensureFlushTimer();
+            break;
+          }
+        }
+      }
+
+      if (!sawAnyDelta) {
+        setAiMessages((prev) => prev.map((m) => {
+          if (m && m.id === assistantId) return { ...m, content: '(empty response)' };
+          return m;
+        }));
+      }
+    } catch (e) {
+      setAiError('Network error while contacting AI');
+    } finally {
+      setAiSending(false);
+    }
+  };
+
   return (
     <div className="main-card profile-card">
       <div className="profile-header">
@@ -176,6 +309,53 @@ export default function Profile() {
                 )}
               </>
             )}
+
+
+
+
+
+
+
+
+
+            <div className="ai-chat">
+              <h3 className="ai-chat-title">AI chat (Ollama)</h3>
+
+              <div className="ai-chat-log" role="log" aria-label="Chat messages">
+                {aiMessages.filter((m) => m.role !== 'system').map((m, idx) => (
+                  <div key={idx} className={`ai-chat-line ai-chat-line--${m.role}`}>
+                    <strong className="ai-chat-role">{m.role === 'user' ? 'You' : 'Assistant'}:</strong>
+                    <span className="ai-chat-content">{m.content}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="ai-chat-controls">
+                <textarea
+                  className="input-medium ai-chat-input"
+                  rows={3}
+                  value={aiInput}
+                  onChange={(e) => setAiInput(e.target.value)}
+                  placeholder="Write a message…"
+                  disabled={aiSending}
+                />
+
+                <div className="ai-chat-actions">
+                  <button className="btn-primary" onClick={onSendAi} disabled={aiSending || !aiInput.trim()}>
+                    {aiSending ? 'Sending…' : 'Send'}
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => { setAiMessages([{ role: 'system', content: 'You are a helpful assistant.' }]); setAiError(''); }}
+                    disabled={aiSending}
+                  >
+                    Clear chat
+                  </button>
+                </div>
+              </div>
+
+              {aiError && <div className="message message--error">{aiError}</div>}
+            </div>
           </div>
         ) : (
           <p>{t('profile.loading')}</p>
