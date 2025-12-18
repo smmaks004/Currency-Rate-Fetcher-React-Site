@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import PrivateRoute from './routes/PrivateRoute';
 import PublicRoute from './routes/PublicRoute';
 
-import Login from './components/Login';
+import Login from './components/auth/Login';
 import Home from './components/Home';
 import Profile from './components/Profile';
 import CurrencyManagement from './components/currencies_management/CurrencyManagement';
@@ -20,7 +20,7 @@ function App() {
     <BrowserRouter>
       <div className="app-container">
         <Routes>
-          <Route path="/login" element={
+          <Route path="/auth/login" element={
             <PublicRoute redirectTo="/">
               <Login />
             </PublicRoute>

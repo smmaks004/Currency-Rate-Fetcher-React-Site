@@ -1,0 +1,121 @@
+/* Center the form */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(180deg, #4f46e5, #9333ea);
+  /* background: linear-gradient(180deg, rgba(36,36,36,1) 0%, rgba(18,20,28,1) 100%); */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Login card */
+.login-box {
+  background: linear-gradient(180deg, rgba(10,12,20,0.98), rgba(18,20,28,0.98));
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 40px 50px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(2,6,20,0.6);
+  width: 350px;
+  text-align: center;
+  color: #e7eefc;
+}
+
+.login-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.login-back {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #cfe1ff;
+  font-size: 14px;
+  padding: 0;
+}
+
+.login-back:hover {
+  color: #8fd3ff;
+}
+
+.login-box h2 {
+  margin-bottom: 25px;
+  color: #cfe1ff;
+}
+
+/* Input fields */
+.input-group {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: #cfe1ff;
+  font-weight: 500;
+}
+
+.input-group input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: block;
+  
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+  background: rgba(255,255,255,0.02);
+  color: #ffffff;
+}
+
+.input-group input::placeholder {
+  color: #94a3b8;
+}
+
+.input-group input:focus {
+  border-color: #6c8cff;
+  outline: none;
+}
+
+/* Login button */
+.login-btn {
+  background: linear-gradient(90deg,#6c8cff,#8fd3ff);
+  color: #051025;
+  border: none;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.login-btn:hover {
+  filter: brightness(1.05);
+}
+
+/* Error */
+.error {
+  color: #ff6b6b;
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+/* "Forgot password" link */
+.forgot-password {
+  margin-top: 15px;
+  color: #cfe1ff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.forgot-password:hover {
+  color: #8fd3ff;
+}

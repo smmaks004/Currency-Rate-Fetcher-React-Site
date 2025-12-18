@@ -11,8 +11,9 @@ const updateRouter = require('./routes/update');
 const marginsRouter = require('./routes/margins');
 const usersRouter = require('./routes/users');
 const aiRouter = require('./routes/ai');
-
 const payments = require('./routes/payments');
+
+const passwordResetRouter = require('./routes/passwordReset'); ////
 
 const app = express();
 app.use(cors({
@@ -26,6 +27,7 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), pay
 
 app.use(express.json());
 
+
 app.use('/api/currencies', currenciesRouter);
 app.use('/api/rates', ratesRouter);
 app.use('/api/auth', authRouter);
@@ -33,6 +35,8 @@ app.use('/api/update', updateRouter);
 app.use('/api/margins', marginsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/ai', aiRouter);
+
+app.use('/api/password-reset', passwordResetRouter);
 
 app.use('/api/payments', payments.router);
 

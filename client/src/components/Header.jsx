@@ -92,7 +92,7 @@ export default function Header() {
             )}
           </div>
         ) : (
-          <button className="btn-primary" onClick={() => navigate('/login')}>{t('header.login')}</button>
+          <button className="btn-primary" onClick={() => navigate('/auth/login')}>{t('header.login')}</button>
         )}
       </div>
     </header>

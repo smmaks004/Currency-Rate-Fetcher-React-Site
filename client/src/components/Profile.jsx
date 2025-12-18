@@ -112,7 +112,7 @@ export default function Profile() {
   const handleUnauthorized = async (setErr, fallbackPrefix = 'Unauthorized') => {
     setErr(`${fallbackPrefix}: please log in again.`);
     try { await refreshUser(); } catch { /* ignore */ }
-    navigate('/login');
+    navigate('/auth/login');
   };
 
   const onSendAi = async () => {
