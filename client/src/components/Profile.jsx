@@ -15,13 +15,19 @@ export default function Profile() {
   const [email, setEmail] = useState(user?.Email || '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ text: '', kind: null });
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState({ text: '', kind: null });
+  const [pwFieldErrors, setPwFieldErrors] = useState({});
   const { t } = useTranslation();
+
+  const displayRole = (user && typeof user.Role === 'string' && user.Role.trim())
+    ? user.Role.charAt(0).toUpperCase() + user.Role.slice(1).toLowerCase()
+    : 'User';
 
   // AI chat (Ollama)
   const [aiMessages, setAiMessages] = useState([
@@ -53,8 +59,15 @@ export default function Profile() {
 
   const onSaveProfile = async () => {
     setMessage({ text: '', kind: null });
-    if (!firstName && !lastName) {
-      setMessage({ text: t('profile.provideName'), kind: 'error' });
+    setFieldErrors({});
+
+    const errs = {};
+    if (!String(firstName || '').trim()) errs.firstName = 'First name is required';
+    if (!String(lastName || '').trim()) errs.lastName = 'Last name is required';
+    if (!String(email || '').trim()) errs.email = 'Email is required';
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
     setSaving(true);
@@ -83,8 +96,23 @@ export default function Profile() {
 
   const onChangePassword = async () => {
     setPwMessage({ text: '', kind: null });
-    if (!password) { setPwMessage({ text: t('profile.passwordRequired'), kind: 'error' }); return; }
-    if (password !== confirmPassword) { setPwMessage({ text: t('profile.passwordMismatch'), kind: 'error' }); return; }
+    setPwFieldErrors({});
+
+    const errs = {};
+    if (!String(password || '').trim()) errs.password = 'Password is required';
+    if (!String(confirmPassword || '').trim()) errs.confirmPassword = 'Please confirm password';
+    if (password && confirmPassword && password !== confirmPassword) errs.confirmPassword = 'Passwords do not match';
+    
+    if (password && password.length < 6) errs.password = 'Password must be at least 6 characters long';
+
+    const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(password || '');
+    if (password && !hasDigitOrSymbol) errs.password = 'Password must include at least one digit or special character';
+
+    if (Object.keys(errs).length > 0) {
+      setPwFieldErrors(errs);
+      return;
+    }
+
     setPwSaving(true);
     try {
       const res = await fetch('/api/auth/change-password', {
@@ -95,15 +123,15 @@ export default function Profile() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setPwMessage({ text: err && err.error ? err.error : t('profile.passwordChangeFailed'), kind: 'error' });
+        setPwMessage({ text: err && err.error ? err.error : 'Failed to change password', kind: 'error' });
       } else {
-        setPwMessage({ text: t('profile.passwordUpdated'), kind: 'success' });
+        setPwMessage({ text: 'Password updated', kind: 'success' });
         setShowPasswordForm(false);
         setPassword('');
         setConfirmPassword('');
       }
     } catch (e) {
-      setPwMessage({ text: t('profile.passwordChangeFailed'), kind: 'error' });
+      setPwMessage({ text: 'Failed to change password', kind: 'error' });
     } finally {
       setPwSaving(false);
     }
@@ -241,7 +269,7 @@ export default function Profile() {
                   <div><strong className="profile-label">{t('profile.firstName')}:</strong> <span className="profile-value">{firstName || '—'}</span></div>
                   <div><strong className="profile-label">{t('profile.lastName')}:</strong> <span className="profile-value">{lastName || '—'}</span></div>
                   <div><strong className="profile-label">{t('profile.email')}:</strong> <span className="profile-value">{email || '—'}</span></div>
-                  <div className="profile-role"><strong>{t('profile.role')}:</strong> {user.Role || 'user'}</div>
+                  <div><strong className="profile-label">{t('profile.role')}:</strong> <span className="profile-value">{displayRole || '—'}</span></div>
                 </div>
 
                 <div className="profile-controls">
@@ -253,11 +281,13 @@ export default function Profile() {
                   <div className="pw-grid">
                     <label className="profile-field">
                       <div className="profile-label">{t('profile.newPassword')}</div>
-                      <input className="input-small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                      <input className="input-small" type="password" value={password} onChange={e => { setPassword(e.target.value); setPwFieldErrors(prev => ({ ...prev, password: '' })); }} maxLength={50} />
+                      {pwFieldErrors.password && <div className="pw-message message--error">{pwFieldErrors.password}</div>}
                     </label>
                     <label className="profile-field">
                       <div className="profile-label">{t('profile.confirmPassword')}</div>
-                      <input className="input-small" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+                      <input className="input-small" type="password" value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setPwFieldErrors(prev => ({ ...prev, confirmPassword: '' })); }} maxLength={50} />
+                      {pwFieldErrors.confirmPassword && <div className="pw-message message--error">{pwFieldErrors.confirmPassword}</div>}
                     </label>
                     <div className="pw-actions">
                       <button className="btn-primary" onClick={onChangePassword} disabled={pwSaving}>{pwSaving ? t('profile.saving') : t('profile.savePassword')}</button>
@@ -271,20 +301,41 @@ export default function Profile() {
               <>
                 <label className="profile-field">
                   <div className="profile-label">{t('profile.firstName')}</div>
-                  <input className="input-small" value={firstName} onChange={e => setFirstName(e.target.value)} autoFocus />
+                  <input
+                    className="input-small"
+                    value={firstName}
+                    onChange={e => { setFirstName(e.target.value); setFieldErrors(prev => ({ ...prev, firstName: '' })); }}
+                    autoFocus
+                    maxLength={50}
+                  />
+                  {fieldErrors.firstName && <div className="message--error">{fieldErrors.firstName}</div>}
                 </label>
 
                 <label className="profile-field">
                   <div className="profile-label">{t('profile.lastName')}</div>
-                  <input className="input-small" value={lastName} onChange={e => setLastName(e.target.value)} />
+                  <input
+                    className="input-small"
+                    value={lastName}
+                    onChange={e => { setLastName(e.target.value); setFieldErrors(prev => ({ ...prev, lastName: '' })); }}
+                    maxLength={50}
+                  />
+                  {fieldErrors.lastName && <div className="message--error">{fieldErrors.lastName}</div>}
                 </label>
 
                 <label className="profile-field full-width">
                   <div className="profile-label">{t('profile.email')}</div>
-                  <input className="input-medium" value={email} onChange={e => setEmail(e.target.value)} />
+                  <input
+                    className="input-medium"
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: '' })); }}
+                  />
+                  {fieldErrors.email && <div className="message--error">{fieldErrors.email}</div>}
                 </label>
 
-                <div className="profile-role"><strong>{t('profile.role')}:</strong> {user.Role || 'user'}</div>
+                <div className="profile-role">
+                  <strong style={{ color: "#cfe1ff" }}>{t('profile.role')}: </strong> 
+                  {displayRole}
+                </div>
 
                 <div className="btn-row">
                   <button className="btn-ghost" onClick={() => { setEditing(false); setFirstName(user?.FirstName || ''); setLastName(user?.LastName || ''); setEmail(user?.Email || ''); setMessage({ text: '', kind: null }); setShowPasswordForm(false); }}>{t('profile.cancel')}</button>
@@ -295,11 +346,11 @@ export default function Profile() {
                   <div className="pw-grid">
                     <label className="profile-field">
                       <div className="profile-label">{t('profile.newPassword')}</div>
-                      <input className="input-small" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                      <input className="input-small" type="password" value={password} onChange={e => setPassword(e.target.value)} maxLength={50} />
                     </label>
                     <label className="profile-field">
                       <div className="profile-label">{t('profile.confirmPassword')}</div>
-                      <input className="input-small" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+                      <input className="input-small" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} maxLength={50} />
                     </label>
                     <div className="pw-actions">
                       <button className="btn-primary" onClick={onChangePassword} disabled={pwSaving}>{pwSaving ? t('profile.saving') : t('profile.savePassword')}</button>

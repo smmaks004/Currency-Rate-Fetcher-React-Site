@@ -11,7 +11,6 @@ export default defineConfig({
     }),
   ],
 
-
   // FOR HTTPS WITH TAILSCALE HOSTNAMES
   server: {
     allowedHosts: [

@@ -160,6 +160,12 @@ router.post('/set', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Password too short' });
   }
 
+  // Require at least one digit or special character (same rule as user creation)
+  const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(password);
+  if (!hasDigitOrSymbol) {
+    return res.status(400).json({ ok: false, error: 'Password must contain at least one digit or special character' });
+  }
+
   // Check in-memory session
   const entry = passwordResetStore.get(normalizedEmail);
   

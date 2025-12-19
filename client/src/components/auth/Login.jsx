@@ -90,19 +90,21 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
               aria-label="email"
+              maxLength={255}
             />
           </div>
 
           <div className="input-group">
             <label>{t('login.passwordLabel')}</label>
-            <input
-              type="password"
-              placeholder={t('login.passwordPlaceholder')}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              aria-label="password"
-            />
+              <input
+                type="password"
+                placeholder={t('login.passwordPlaceholder')}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                aria-label="password"
+                maxLength={50}
+              />
           </div>
 
           {error && <p className="error">{error}</p>}

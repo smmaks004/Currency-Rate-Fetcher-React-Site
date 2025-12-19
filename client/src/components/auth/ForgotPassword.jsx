@@ -20,6 +20,7 @@ export default function ForgotPassword({
   // Code input state
   const [codeChars, setCodeChars] = useState(() => Array.from({ length: 6 }, () => ''));
   const codeInputsRef = useRef([]);
+  const prevFullRef = useRef(false);
 
   // Reset password state
   const [resetToken, setResetToken] = useState(null); // Security token from server
@@ -83,17 +84,25 @@ export default function ForgotPassword({
       
       const data = await resp.json().catch(() => ({}));
 
-      // Handle specific error (e.g. "Account is deleted")
-      if (!resp.ok || !data.ok) {
+      // If account explicitly blocked/deleted -> show error
+      if (resp.status === 403) {
         setStatusKind('error');
-        setStatusText(data?.error || 'Failed to send code');
+        setStatusText(data?.error || 'Account is deleted');
+        setSending(false);
+        return;
+      }
+
+      // Other server errors -> show generic server error
+      if (!resp.ok) {
+        setStatusKind('error');
+        setStatusText(data?.error || 'Server error');
         setSending(false);
         return;
       }
 
       // Success
       setStatusKind('info');
-      setStatusText('Code sent (check spam folder too).');
+      setStatusText('Code sent (check spam folder too)');
       onSubmitEmail?.(trimmedEmail);
       
       setCodeChars(Array.from({ length: 6 }, () => ''));
@@ -184,15 +193,24 @@ export default function ForgotPassword({
     }
   };
 
-  // Auto-submit code when filled
+  // Auto-submit code when filled (trigger once on transition -> full)
   useEffect(() => {
     if (step !== 'code') return;
-    const code = codeChars.join('').toUpperCase();
-    if (code.length === 6 && codeChars.every(c => c)) {
+    const isFull = codeChars.every(c => Boolean(c));
+
+    if (isFull && !prevFullRef.current && !sending) {
+      prevFullRef.current = true;
+      const code = codeChars.join('').toUpperCase();
       verifyCode(code);
+      return;
     }
+
+    // Reset the flag when it's not full so next full state triggers again
+    if (!isFull) prevFullRef.current = false;
+
+    
     // eslint-disable-next-line
-  }, [codeChars, step]);
+  }, [codeChars, step, sending]);
 
   // 3. Set New Password
   const handleResetPassword = async (e) => {
@@ -209,6 +227,13 @@ export default function ForgotPassword({
     }
     if (resetPw.length < 6) {
       setStatusText('Password must be at least 6 characters.');
+      setStatusKind('error');
+      return;
+    }
+    // Require at least one digit or special character (keep same rule as user creation)
+    const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(resetPw);
+    if (!hasDigitOrSymbol) {
+      setStatusText('Password must include at least one digit or special character');
       setStatusKind('error');
       return;
     }
@@ -300,6 +325,7 @@ export default function ForgotPassword({
               placeholder="Enter your email"
               required
               autoFocus
+              maxLength={255}
             />
             <button className="forgot-submit" type="submit" disabled={sending}>
               {sending ? 'Sending…' : 'Send code'}
@@ -325,7 +351,7 @@ export default function ForgotPassword({
                 className="code-input"
                 inputMode="text"
                 autoComplete="one-time-code"
-                maxLength={6}
+                maxLength={1}
                 value={ch}
                 onChange={(e) => handleCodeChange(idx, e.target.value)}
                 onKeyDown={(e) => handleCodeKeyDown(idx, e)}
@@ -351,6 +377,7 @@ export default function ForgotPassword({
               onChange={e => setResetPw(e.target.value)}
               placeholder="Enter new password"
               minLength={6}
+              maxLength={50}
               required
               autoFocus
             />
@@ -363,6 +390,7 @@ export default function ForgotPassword({
               onChange={e => setResetPwRepeat(e.target.value)}
               placeholder="Repeat new password"
               minLength={6}
+              maxLength={50}
               required
             />
             <button className="forgot-submit" type="submit" disabled={sending}>

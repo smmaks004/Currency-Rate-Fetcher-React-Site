@@ -48,3 +48,29 @@
 	color: #fca5a5;
 	border-color: rgba(248, 113, 113, 0.35);
 }
+
+
+
+
+
+
+.col-edit {
+  width: 60px;
+}
+
+.edit-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.edit-actions { display:flex; gap:6px; align-items:center; }
+.edit-actions .error-msg { color: #dc2626; font-size: 12px; margin-left:8px; }
+.curr-table input[type="text"], .curr-table input[type="date"] { padding:4px 6px; font-size:0.9rem; }

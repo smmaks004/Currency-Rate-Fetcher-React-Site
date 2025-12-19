@@ -47,9 +47,11 @@ export default function Header() {
               Margin management
             </Link>
 
-            <Link to="/admin_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
-              Admin Management
-            </Link>
+            {user.Role === 'admin' && (
+              <Link to="/admin_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
+                Admin Management
+              </Link>
+            )}
           </div>
           
         )}

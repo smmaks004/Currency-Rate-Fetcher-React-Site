@@ -282,4 +282,152 @@ router.post('/create', protect, async (req, res) => {
   }
 });
 
+
+
+
+/***/
+
+
+// PUT /api/margins/update/:id
+// Update an existing margin and shift neighboring margins if needed
+router.put('/update/:id', protect, async (req, res) => {
+  const marginId = req.params.id;
+  const { marginValue, startDate, endDate } = req.body;
+  const userId = req.user?.id;
+
+  if (marginValue == null || isNaN(marginValue)) {
+    return res.status(400).json({ error: 'Invalid margin value' });
+  }
+  if (!startDate) {
+    return res.status(400).json({ error: 'Start date is required' });
+  }
+
+  const decimalValue = parseFloat(marginValue) / 100;
+  const today = getTodayStr();
+  if (startDate > today) {
+    return res.status(400).json({ error: 'Future margins are not allowed. Start Date must be today or in the past.' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Fetch current margin
+    const [currentRows] = await connection.query(
+      'SELECT Id, CAST(StartDate AS CHAR) as StartDate, CAST(EndDate AS CHAR) as EndDate FROM Margins WHERE Id = ? LIMIT 1',
+      [marginId]
+    );
+
+    if (currentRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Margin not found' });
+    }
+
+    // Prevent exact StartDate collision with other margins
+    const [sameDay] = await connection.query(
+      'SELECT Id FROM Margins WHERE StartDate = ? AND Id != ? LIMIT 1',
+      [startDate, marginId]
+    );
+    if (sameDay.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({ error: `A margin starting on ${startDate} already exists.` });
+    }
+
+    // Load all other margins ordered by StartDate ASC
+    const [existingMargins] = await connection.query(`
+      SELECT Id, CAST(StartDate AS CHAR) as StartDate, CAST(EndDate AS CHAR) as EndDate 
+      FROM Margins 
+      WHERE Id != ?
+      ORDER BY StartDate ASC
+    `, [marginId]);
+
+    const newStart = startDate;
+    const newEnd = endDate || null;
+
+    let previousMarginToClose = null;
+    let succeedingMarginToModify = null;
+    const marginsToDelete = [];
+
+    for (const m of existingMargins) {
+      const mStart = m.StartDate;
+      const mEnd = m.EndDate || '9999-12-31';
+
+      if (mStart < newStart) {
+        if (mEnd === '9999-12-31' || mEnd >= newStart) {
+          previousMarginToClose = m;
+        }
+      }
+
+      if (mStart > newStart && !succeedingMarginToModify) {
+        succeedingMarginToModify = m;
+      }
+
+      if (!newEnd && mStart > newStart) {
+        marginsToDelete.push(m.Id);
+      }
+    }
+
+    // Close previous margin (cut to yesterday)
+    if (previousMarginToClose) {
+      const cutOffDate = addDaysToDateStr(newStart, -1);
+      await connection.query('UPDATE Margins SET EndDate = ? WHERE Id = ?', [cutOffDate, previousMarginToClose.Id]);
+      await connection.query('UPDATE CurrencyRates SET MarginId = NULL WHERE MarginId = ? AND Date > ?', [previousMarginToClose.Id, cutOffDate]);
+    }
+
+    // Process succeeding margin
+    if (succeedingMarginToModify) {
+      if (newEnd) {
+        const shiftedStartDate = addDaysToDateStr(newEnd, 1);
+        const succeedingEndDate = succeedingMarginToModify.EndDate || '9999-12-31';
+
+        if (shiftedStartDate <= succeedingEndDate) {
+          await connection.query('UPDATE Margins SET StartDate = ? WHERE Id = ?', [shiftedStartDate, succeedingMarginToModify.Id]);
+          await connection.query('UPDATE CurrencyRates SET MarginId = NULL WHERE MarginId = ? AND Date < ?', [succeedingMarginToModify.Id, shiftedStartDate]);
+        } else {
+          await connection.query('DELETE FROM Margins WHERE Id = ?', [succeedingMarginToModify.Id]);
+          await connection.query('UPDATE CurrencyRates SET MarginId = NULL WHERE MarginId = ?', [succeedingMarginToModify.Id]);
+        }
+
+      } else {
+        if (marginsToDelete.length > 0) {
+          await connection.query('UPDATE CurrencyRates SET MarginId = NULL WHERE MarginId IN (?)', [marginsToDelete]);
+          await connection.query('DELETE FROM Margins WHERE Id IN (?)', [marginsToDelete]);
+        }
+      }
+    }
+
+    // Update the margin record
+    await connection.query(
+      'UPDATE Margins SET MarginValue = ?, StartDate = ?, EndDate = ?, UserId = ? WHERE Id = ?',
+      [decimalValue, newStart, newEnd, userId, marginId]
+    );
+
+    // Update CurrencyRates to point to this margin where appropriate
+    if (newEnd) {
+      await connection.query('UPDATE CurrencyRates SET MarginId = ? WHERE Date >= ? AND Date <= ?', [marginId, newStart, newEnd]);
+    } else {
+      await connection.query('UPDATE CurrencyRates SET MarginId = ? WHERE Date >= ?', [marginId, newStart]);
+    }
+
+    await connection.commit();
+    return res.json({ success: true, message: 'Margin updated' });
+
+  } catch (err) {
+    await connection.rollback();
+    console.error('Update margin failed', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+/***/
+
+
+
+
+
+
+
+
 module.exports = router;

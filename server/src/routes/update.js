@@ -20,7 +20,16 @@ router.post('/update-profile', protect, async (req, res) => {
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    await pool.query('UPDATE Users SET FirstName = ?, LastName = ?, Email = ? WHERE Id = ?', [firstName || null, lastName || null, email || null, userId]);
+    const newEmail = typeof email === 'string' ? email.trim() : null;
+
+    if (newEmail) {
+      const [existingRows] = await pool.query('SELECT Id FROM Users WHERE Email = ?', [newEmail]);
+      if (existingRows && existingRows.length > 0 && existingRows[0].Id !== userId) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
+    }
+
+    await pool.query('UPDATE Users SET FirstName = ?, LastName = ?, Email = ? WHERE Id = ?', [firstName || null, lastName || null, newEmail || null, userId]);
 
     // Read back updated user
     const [rows] = await pool.query('SELECT Id, Email, FirstName, LastName, Role FROM Users WHERE Id = ?', [userId]);

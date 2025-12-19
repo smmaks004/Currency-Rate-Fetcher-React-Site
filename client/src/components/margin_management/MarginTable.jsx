@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import '../common/TableStyles.css';
 import './MarginTable.css';
@@ -38,6 +38,16 @@ export default function MarginTable() {
 
   const { t } = useTranslation();
   const pageSize = 20;
+
+  // Inline editing state
+  const [editingId, setEditingId] = useState(null);
+  const [editValues, setEditValues] = useState({ marginValue: '', startDate: '', endDate: '' });
+  const [editingLoading, setEditingLoading] = useState(false);
+  const [editingError, setEditingError] = useState('');
+  const activeRowRef = useRef(null);
+  const tableWrapperRef = useRef(null);
+
+  const todayDate = new Date().toISOString().split('T')[0];
 
   const fetchMargins = async () => {
     setLoading(true);
@@ -112,6 +122,99 @@ export default function MarginTable() {
     setPage(1);
   };
 
+
+/////////////
+  const findMarginById = (id) => margins.find(m => String(m.Id) === String(id));
+
+  const startEdit = (id) => {
+    const m = findMarginById(id);
+    if (!m) return;
+    setEditingError('');
+    setEditingId(id);
+    setEditValues({
+      marginValue: (Number(m.MarginValue) * 100).toFixed(2),
+      startDate: m.StartDate || '',
+      endDate: m.EndDate || ''
+    });
+    setTimeout(() => {
+      if (tableWrapperRef.current) {
+        const el = tableWrapperRef.current.querySelector(`[data-row-id='${id}']`);
+        if (el) activeRowRef.current = el;//
+      }
+    }, 0);
+  };
+
+  const finishEdit = async () => {
+    if (!editingId) return;
+    setEditingError('');
+
+    const normalizedValue = (editValues.marginValue || '').replace(/,/g, '.');
+    if (!normalizedValue || !editValues.startDate) {
+      setEditingError('Margin value and start date are required.');
+      return;
+    }
+    if (editValues.startDate > todayDate) {
+      setEditingError('Start date cannot be in the future.');
+      return;
+    }
+    const val = parseFloat(normalizedValue);
+    if (isNaN(val) || val < 0 || val > 100) {
+      setEditingError('Margin must be between 0 and 100.');
+      return;
+    }
+
+    setEditingLoading(true);
+    try {
+      const payload = {
+        marginValue: normalizedValue,
+        startDate: editValues.startDate,
+        endDate: editValues.endDate || null
+      };
+
+      const res = await fetch(`/api/margins/update/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setEditingError(data.error || 'Save failed');
+      } else {
+        setEditingId(null);
+        setEditValues({ marginValue: '', startDate: '', endDate: '' });
+        fetchMargins();
+      }
+    } catch (err) {
+      setEditingError('Network error');
+    } finally {
+      setEditingLoading(false);
+    }
+  };
+
+  // Click outside detection: save on outside click
+  useEffect(() => {
+    const onDocMouseDown = (e) => {
+      if (!editingId) return;
+      const active = activeRowRef.current;
+      if (!active) return;
+      if (!active.contains(e.target)) {
+        const orig = findMarginById(editingId);
+        if (!orig) { setEditingId(null); return; }
+        const origVal = (Number(orig.MarginValue) * 100).toFixed(2);
+        const changed = origVal !== (editValues.marginValue || '') || (orig.StartDate || '') !== (editValues.startDate || '') || (orig.EndDate || '' ) !== (editValues.endDate || '');
+        if (changed) finishEdit();
+        else setEditingId(null);
+      }
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [editingId, editValues]);
+
+
+
+
   return (
     <div className="margin-table-wrapper">
       <div className="margin-header">
@@ -134,21 +237,58 @@ export default function MarginTable() {
               <th onClick={() => onHeaderClick('endDate')}>{t('marginTable.colEndDate')} {sortBy === 'endDate' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
               <th onClick={() => onHeaderClick('statusKey')}>{t('marginTable.colStatus')} {sortBy === 'statusKey' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
               <th onClick={() => onHeaderClick('owner')}>{t('marginTable.colCreatedBy')} {sortBy === 'owner' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+              <th className="col-edit">&nbsp;</th>
             </tr>
           </thead>
           <tbody>
             {pageRows.map((row) => (
-              <tr key={row.key}>
+              <tr key={row.key} data-row-id={row.key}>
                 <td>{row.id}</td>
-                <td>{row.marginDisplay}</td>
-                <td>{row.startDate}</td>
-                <td>{row.endDate}</td>
+                <td>
+                  {editingId === row.key ? (
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9]*[.,]?[0-9]*"
+                      value={editValues.marginValue}
+                      onChange={(e) => setEditValues(ev => ({ ...ev, marginValue: e.target.value }))}
+                      disabled={editingLoading}
+                    />
+                  ) : (
+                    row.marginDisplay
+                  )}
+                </td>
+                <td>
+                  {editingId === row.key ? (
+                    <input type="date" max={todayDate} value={editValues.startDate} onChange={(e) => setEditValues(ev => ({ ...ev, startDate: e.target.value }))} disabled={editingLoading} />
+                  ) : (
+                    row.startDate
+                  )}
+                </td>
+                <td>
+                  {editingId === row.key ? (
+                    <input type="date" value={editValues.endDate} onChange={(e) => setEditValues(ev => ({ ...ev, endDate: e.target.value }))} disabled={editingLoading} />
+                  ) : (
+                    row.endDate
+                  )}
+                </td>
                 <td>
                   <span className={`status-chip status-${row.statusKey}`}>
                     {t(`marginTable.status${row.statusKey.charAt(0).toUpperCase()}${row.statusKey.slice(1)}`)}
                   </span>
                 </td>
                 <td>{row.owner}</td>
+                <td className="edit-cell">
+                  {editingId === row.key ? (
+                    <div className="edit-actions">
+                      <button className="btn-confirm" onClick={() => finishEdit()} disabled={editingLoading}>{editingLoading ? 'Saving...' : 'Save'}</button>
+                      <button className="btn-cancel" onClick={() => setEditingId(null)} disabled={editingLoading}>Cancel</button>
+                      {editingError && <div className="error-msg">{editingError}</div>}
+                    </div>
+                  ) : (
+                    <button className="icon-btn" title={'Edit'} onClick={() => startEdit(row.key)}>✎</button>
+                  )}
+                </td>
               </tr>
             ))}
             {!loading && rows.length === 0 && (

@@ -59,6 +59,12 @@ router.post('/create', protect, async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 6 characters long' });
   }
 
+  // Require at least one digit or special character
+  const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(password);
+  if (!hasDigitOrSymbol) {
+    return res.status(400).json({ error: 'Password must contain at least one digit or special character' });
+  }
+
   const validRoles = ['user', 'admin'];
   const selectedRole = role && validRoles.includes(role) ? role : 'user';
 

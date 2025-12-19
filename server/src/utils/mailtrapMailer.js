@@ -32,6 +32,9 @@ async function sendPasswordResetCodeEmail({ to, code, expiresInMinutes }) {
 
   const transport = createMailerTransport();
 
+  
+  // const destination = process.env.UNIVERSAL_EMAIL;////
+
   const text = [
   'Your password reset code is:',
   String(code),
@@ -42,8 +45,8 @@ async function sendPasswordResetCodeEmail({ to, code, expiresInMinutes }) {
 
   return transport.sendMail({
   from: { address: fromAddress, name: fromName },
-  to: [String(to)],
-//   to: process.env.UNIVERSAL_EMAIL,
+  // to: [String(to)],
+  to: process.env.UNIVERSAL_EMAIL,
   subject: 'Password reset code',
   text,
   category,

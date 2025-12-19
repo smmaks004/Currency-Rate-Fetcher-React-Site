@@ -16,7 +16,8 @@ export default function PrivateRoute({ children, allowedRoles = [] }) {
   }
 
   // Role check
-  const userRole = (user.Role || user.role || '').toLowerCase(); 
+  // const userRole = (user.Role || user.role || '').toLowerCase(); 
+  const userRole = (user.Role || '').toLowerCase(); 
   
   if (allowedRoles.length > 0) {
       const hasRole = allowedRoles.some(role => role.toLowerCase() === userRole);

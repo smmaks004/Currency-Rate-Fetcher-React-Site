@@ -66,6 +66,13 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 			return;
 		}
 
+		// Require at least one digit or special character
+		const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(password);
+		if (!hasDigitOrSymbol) {
+			setCreateError('Password must include at least one digit or special character');
+			return;
+		}
+
 		setLoading(true);
 
 		try {
@@ -120,6 +127,7 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 						value={firstName}
 						onChange={(e) => setFirstName(e.target.value)}
 						disabled={loading}
+						maxLength={50}
 					/>
 				</div>
 
@@ -131,6 +139,7 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 						value={lastName}
 						onChange={(e) => setLastName(e.target.value)}
 						disabled={loading}
+						maxLength={50}
 					/>
 				</div>
 
@@ -165,6 +174,7 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 						disabled={loading}
+						maxLength={50}
 					/>
 				</div>
 

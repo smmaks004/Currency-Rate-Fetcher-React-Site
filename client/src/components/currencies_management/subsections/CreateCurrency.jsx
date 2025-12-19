@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function CreateCurrency() {
   const [code, setCode] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -13,6 +14,12 @@ export default function CreateCurrency() {
     const v = String(e.target.value || '');
     const filtered = v.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3);
     setCode(filtered);
+    setError('');
+    setSuccess(false);
+  };
+
+  const onNameChange = (e) => {
+    setName(e.target.value || '');
     setError('');
     setSuccess(false);
   };
@@ -30,7 +37,7 @@ export default function CreateCurrency() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currencyCode: code })
+        body: JSON.stringify({ currencyCode: code, currencyName: name })
       });
 
       if (!res.ok) {
@@ -42,6 +49,8 @@ export default function CreateCurrency() {
 
       
       setSuccess(true); // Success
+      setName('');
+      setCode('');
     } catch (err) {
       setError(t('createCurrency.errorRequest'));
     } finally {
@@ -60,10 +69,17 @@ export default function CreateCurrency() {
           placeholder={t('createCurrency.placeholder')}
           style={{ padding: '6px 8px', width: 80, textTransform: 'uppercase' }}
         />
+        <input
+          value={name}
+          onChange={onNameChange}
+          placeholder={'Currency name (optional)'}
+          maxLength={50}
+          style={{ padding: '6px 8px', width: 220 }}
+        />
         <button
           className="tab-btn"
           onClick={onCreate}
-          disabled={loading || code.length !== 3}
+          disabled={loading}
           style={{ padding: '6px 10px' }}
         >
           {loading ? t('createCurrency.creating') : t('createCurrency.create')}
