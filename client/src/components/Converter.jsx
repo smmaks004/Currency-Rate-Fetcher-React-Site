@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import './Converter.css';
 import DatePicker, { registerLocale } from 'react-datepicker';
@@ -6,6 +6,8 @@ import enGB from 'date-fns/locale/en-GB';
 import 'react-datepicker/dist/react-datepicker.css';
 import { calculateSellRate } from '../utils/currencyCalculations';
 registerLocale('en-GB', enGB);
+
+import { useRates } from '../contexts/RatesContext';
 
 // =======================================================================
 // Helpers
@@ -68,7 +70,7 @@ export default function ConverterPage() {
 
     const [payLoading, setPayLoading] = useState(false); ////
 
-    const cacheRef = useRef({});
+    const { getRateForDate } = useRates();
 
     // --- Load currencies ---
     useEffect(() => {
@@ -92,40 +94,7 @@ export default function ConverterPage() {
     }, [t]);
 
     // --- API and calculations ---
-    const fetchRates = useCallback(async (currencyId) => {
-        if (!currencyId) return new Map();
-        if (cacheRef.current[currencyId]?.loaded) return cacheRef.current[currencyId].map;
-        cacheRef.current[currencyId] = { loaded: false, map: new Map() };
-        try {
-            const res = await fetch(`/api/rates/${currencyId}`);
-            if (!res.ok) return new Map();
-            const rows = await res.json();
-            const map = new Map();
-            for (const r of rows) {
-                const dt = new Date(r.Date);
-                if (Number.isNaN(dt.getTime())) continue;
-                const key = dateKeyFromDate(dt);
-                map.set(key, { rate: Number(r.ExchangeRate), margin: r.MarginValue != null ? Number(r.MarginValue) : 0 });
-            }
-            cacheRef.current[currencyId] = { loaded: true, map };
-            return map;
-        } catch (e) {
-            cacheRef.current[currencyId] = { loaded: true, map: new Map() };
-            return new Map();
-        }
-    }, []);
-
-    const getRateForDate = useCallback(async (currencyId, dateKey) => {
-        if (!currencyId) return null;
-        const map = await fetchRates(currencyId);
-        if (!map || map.size === 0) return null;
-        if (map.has(dateKey)) return { rate: map.get(dateKey), usedKey: dateKey };
-        const keys = Array.from(map.keys()).sort();
-        for (let i = keys.length - 1; i >= 0; i--) {
-            if (keys[i] <= dateKey) return { rate: map.get(keys[i]), usedKey: keys[i] };
-        }
-        return null;
-    }, [fetchRates]);
+    // useRates.getRateForDate is used below
 
     const computePairRates = useCallback(async (fId, tId, dateObj) => {
         if (!fId || !tId || !dateObj) return { sell: null, usedDate: null };

@@ -13,10 +13,12 @@ import AdminManagement from './components/admin_management/AdminManagement';
 import './App.css';
 
 import { AuthProvider } from './components/AuthContext'; ///
+import { RatesProvider } from './contexts/RatesContext'; ///
 
 function App() {
   return (
     <AuthProvider>
+    <RatesProvider>
     <BrowserRouter>
       <div className="app-container">
         <Routes>
@@ -58,6 +60,7 @@ function App() {
         </Routes>
       </div>
     </BrowserRouter>
+    </RatesProvider>
     </AuthProvider>
   );
 }

@@ -10,6 +10,7 @@ import Header from './Header';
 import { useAuth } from './AuthContext';
 import { useTranslation } from 'react-i18next';
 import { calculatePairRates } from '../utils/currencyCalculations';
+import { useRates } from '../contexts/RatesContext';
 
 // Creates a debounced callback: delays invocation until 'wait' ms after the last call. 
 // The returned function includes a 'cancel' method to abort a pending invocation.
@@ -46,7 +47,6 @@ export default function Home() {
   const [debugLogs, setDebugLogs] = useState([]); 
 
   const chartRef = useRef(null);
-  const cacheRef = useRef({});
   const fullTimelineRef = useRef([]);
   const fullMinRef = useRef(null);
   const fullMaxRef = useRef(null);
@@ -56,6 +56,7 @@ export default function Home() {
   const [latestRates, setLatestRates] = useState(null);
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
+  const { ensureRates } = useRates();
   const chartInstanceKey = useMemo(() => `chart-${i18n.language}`, [i18n.language]);
   
   
@@ -120,55 +121,7 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [logDebug, t]);
 
-  // -----------------------------------------------------------
-  // fetchRates: request full history for a currency and return a Map
-  // keyed by 'YYYY-MM-DD' local date -> { rate, margin, date }
-  // This is used to populate the per-currency cache once
-  // -----------------------------------------------------------
-  const fetchRates = useCallback(async (currencyId) => {
-    try {
-      // backend returns full history for GET /api/rates/:currencyId
-      const url = `/api/rates/${currencyId}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        logDebug(`fetchRates failed ${currencyId} status=${res.status}`);
-        return new Map();
-      }
-      const rows = await res.json();
-      const map = new Map();
-      for (const r of rows) {
-        const dt = parseDate(r.Date);
-        if (!dt) continue;
-        const y = dt.getFullYear();
-        const m = String(dt.getMonth() + 1).padStart(2, '0');
-        const d = String(dt.getDate()).padStart(2, '0');
-        const key = `${y}-${m}-${d}`;
-
-        // Store a local-date-based object
-        map.set(key, { rate: Number(r.ExchangeRate), margin: r.MarginValue != null ? Number(r.MarginValue) : 0, date: new Date(y, dt.getMonth(), dt.getDate()) });
-      }
-      return map;
-    } catch (err) {
-      logDebug(`fetchRates error for ${currencyId}: ${err && err.message ? err.message : err}`);
-      return new Map();
-    }
-  }, [logDebug]);
-
-  // -----------------------------------------------------------
-  // ensureCurrencyCached: load and memoize the full history for 'currencyId'
-  // Returns an object { loaded: bool, map: Map }
-  // -----------------------------------------------------------
-  const ensureCurrencyCached = useCallback(async (currencyId) => {
-    if (!currencyId) return { loaded: false, map: new Map() };
-    if (cacheRef.current[currencyId]?.loaded) return cacheRef.current[currencyId];
-    
-    // mark placeholder to avoid duplicates
-    cacheRef.current[currencyId] = { loaded: false, map: new Map() };
-    const map = await fetchRates(currencyId);
-    cacheRef.current[currencyId] = { loaded: true, map };
-    logDebug(`Cached ${currencyId} rows=${map.size}`);
-    return cacheRef.current[currencyId];
-  }, [fetchRates, logDebug]);
+  // cache & loading handled by RatesContext (ensureRates/getMap)
 
   // -----------------------------------------------------------
   // buildFullTimeline: compute the earliest and latest recorded dates
@@ -178,8 +131,8 @@ export default function Home() {
   const buildFullTimeline = useCallback(async (fId, tId) => {
     if (!fId || !tId) return;
     
-    // Ensure both caches loaded
-    const [fc, tc] = await Promise.all([ensureCurrencyCached(fId), ensureCurrencyCached(tId)]);
+    // Ensure both caches loaded (RatesContext)
+    const [fc, tc] = await Promise.all([ensureRates(fId), ensureRates(tId)]);
     const allDates = [];
 
     // Gather keys (dates) from both maps
@@ -210,7 +163,7 @@ export default function Home() {
     fullTimelineRef.current = timeline;
     logDebug(`Built full timeline from ${fullMinRef.current.toISOString().slice(0,10)} to ${fullMaxRef.current.toISOString().slice(0,10)} length=${timeline.length}`);
     return;
-  }, [ensureCurrencyCached, logDebug]);
+  }, [ensureRates, logDebug]);
 
   
   // keyFromTimestampUTC: given a UTC timestamp used in the chart timeline
@@ -229,9 +182,9 @@ export default function Home() {
     const computeLatestRates = useCallback(async (fId, tId) => {
       if (!fId || !tId) { setLatestRates(null); return; }
       try {
-        // ensure cache + timeline
-        await ensureCurrencyCached(fId);
-        await ensureCurrencyCached(tId);
+        // ensure cache + timeline using RatesContext
+        const fCachedInit = await ensureRates(fId);
+        const tCachedInit = await ensureRates(tId);
         if (!fullTimelineRef.current || fullTimelineRef.current.length === 0) {
           await buildFullTimeline(fId, tId);
           if (!fullTimelineRef.current || fullTimelineRef.current.length === 0) {
@@ -240,8 +193,8 @@ export default function Home() {
           }
         }
 
-        const mapFrom = cacheRef.current[fId]?.map || new Map();
-        const mapTo = cacheRef.current[tId]?.map || new Map();
+        const mapFrom = (fCachedInit && fCachedInit.map) || new Map();
+        const mapTo = (tCachedInit && tCachedInit.map) || new Map();
 
         const fromCur = currencies.find((c) => c.Id === fId);
         const toCur = currencies.find((c) => c.Id === tId);
@@ -284,7 +237,7 @@ export default function Home() {
         logDebug('computeLatestRates failed: ' + (e && e.message ? e.message : e));
         setLatestRates(null);
     }
-  }, [ensureCurrencyCached, buildFullTimeline, currencies, logDebug]);
+  }, [ensureRates, buildFullTimeline, currencies, logDebug]);
 
   // -----------------------------------------------------------
   // buildSeriesFromCache: construct Buy/Sell series arrays aligned to 'fullTimelineRef'
@@ -308,9 +261,9 @@ export default function Home() {
       rangeEnd = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
     }
 
-    // Ensure caches present
-    const fCached = await ensureCurrencyCached(fId);
-    const tCached = await ensureCurrencyCached(tId);
+    // Ensure caches present (RatesContext)
+    const fCached = await ensureRates(fId);
+    const tCached = await ensureRates(tId);
     const mapFrom = fCached?.map || new Map();
     const mapTo = tCached?.map || new Map();
 
@@ -400,7 +353,7 @@ export default function Home() {
     } else {
       logDebug('Chart not ready for setData');
     }
-}, [buildFullTimeline, currencies, ensureCurrencyCached, logDebug]);
+}, [buildFullTimeline, currencies, ensureRates, logDebug]);
 
 
 
@@ -659,8 +612,8 @@ export default function Home() {
     (async () => {
       setLoading(true);
       try {
-        await ensureCurrencyCached(fromId);
-        await ensureCurrencyCached(toId);
+        await ensureRates(fromId);
+        await ensureRates(toId);
         await buildFullTimeline(fromId, toId);
 
         // If chart is ready, populate initial 1y view
@@ -687,7 +640,7 @@ export default function Home() {
         setLoading(false);
       }
     });
-  }, [fromId, toId, buildFullTimeline, ensureCurrencyCached, buildSeriesFromCache, chartReady, logDebug]);
+  }, [fromId, toId, buildFullTimeline, ensureRates, buildSeriesFromCache, chartReady, logDebug]);
 
   useEffect(() => {
     if (!chartReady) return;
