@@ -72,7 +72,7 @@ export default function CreateCurrency() {
         <input
           value={name}
           onChange={onNameChange}
-          placeholder={'Currency name (optional)'}
+          placeholder={t('createCurrency.namePlaceholder')}
           maxLength={50}
           style={{ padding: '6px 8px', width: 220 }}
         />

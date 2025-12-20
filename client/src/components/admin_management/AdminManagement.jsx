@@ -19,10 +19,10 @@ export default function AdminManagement() {
 				<Header />
 				<main className="main-card wide">
 					<section className="controls" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0' }}>
-						<div className="headline">Admin Management</div>
+						<div className="headline">{t('header.adminManagement')}</div>
 					</section>
 					<section style={{ padding: '16px' }}>
-						<div className="no-data-cell">Access restricted to administrators.</div>
+						<div className="no-data-cell">{t('admin.accessRestricted')}</div>
 					</section>
 				</main>
 			</div>
@@ -38,15 +38,15 @@ export default function AdminManagement() {
 					className="controls"
 					style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0' }}
 				>
-					<div className="headline">Admin Management</div>
+						<div className="headline">{t('header.adminManagement')}</div>
 					<div className="tabs-row" style={{ display: 'flex', gap: '8px', marginTop: 0 }}>
-						<button
-							className={`tab-btn ${activeTab === 'userTable' ? 'active' : ''}`}
-							onClick={() => setActiveTab('userTable')}
-							style={{ padding: '6px 8px' }}
-						>
-							User Table
-						</button>
+								<button
+									className={`tab-btn ${activeTab === 'userTable' ? 'active' : ''}`}
+									onClick={() => setActiveTab('userTable')}
+									style={{ padding: '6px 8px' }}
+								>
+									{t('admin.userTable')}
+								</button>
 					</div>
 				</section>
 

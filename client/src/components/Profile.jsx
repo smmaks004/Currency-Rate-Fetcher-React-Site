@@ -62,9 +62,9 @@ export default function Profile() {
     setFieldErrors({});
 
     const errs = {};
-    if (!String(firstName || '').trim()) errs.firstName = 'First name is required';
-    if (!String(lastName || '').trim()) errs.lastName = 'Last name is required';
-    if (!String(email || '').trim()) errs.email = 'Email is required';
+    if (!String(firstName || '').trim()) errs.firstName = t('profile.firstNameRequired');
+    if (!String(lastName || '').trim()) errs.lastName = t('profile.lastNameRequired');
+    if (!String(email || '').trim()) errs.email = t('profile.emailRequired');
 
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
@@ -99,14 +99,14 @@ export default function Profile() {
     setPwFieldErrors({});
 
     const errs = {};
-    if (!String(password || '').trim()) errs.password = 'Password is required';
-    if (!String(confirmPassword || '').trim()) errs.confirmPassword = 'Please confirm password';
-    if (password && confirmPassword && password !== confirmPassword) errs.confirmPassword = 'Passwords do not match';
-    
-    if (password && password.length < 6) errs.password = 'Password must be at least 6 characters long';
+    if (!String(password || '').trim()) errs.password = t('profile.passwordRequired');
+    if (!String(confirmPassword || '').trim()) errs.confirmPassword = t('profile.passwordConfirmRequired');
+    if (password && confirmPassword && password !== confirmPassword) errs.confirmPassword = t('profile.passwordMismatch');
+
+    if (password && password.length < 6) errs.password = t('profile.passwordTooShort');
 
     const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(password || '');
-    if (password && !hasDigitOrSymbol) errs.password = 'Password must include at least one digit or special character';
+    if (password && !hasDigitOrSymbol) errs.password = t('profile.passwordRequiresDigitSymbol');
 
     if (Object.keys(errs).length > 0) {
       setPwFieldErrors(errs);
@@ -123,15 +123,15 @@ export default function Profile() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setPwMessage({ text: err && err.error ? err.error : 'Failed to change password', kind: 'error' });
+        setPwMessage({ text: err && err.error ? err.error : t('profile.passwordChangeFailed'), kind: 'error' });
       } else {
-        setPwMessage({ text: 'Password updated', kind: 'success' });
+        setPwMessage({ text: t('profile.passwordUpdated'), kind: 'success' });
         setShowPasswordForm(false);
         setPassword('');
         setConfirmPassword('');
       }
     } catch (e) {
-      setPwMessage({ text: 'Failed to change password', kind: 'error' });
+      setPwMessage({ text: t('profile.passwordChangeFailed'), kind: 'error' });
     } finally {
       setPwSaving(false);
     }
@@ -269,7 +269,7 @@ export default function Profile() {
                   <div><strong className="profile-label">{t('profile.firstName')}:</strong> <span className="profile-value">{firstName || '—'}</span></div>
                   <div><strong className="profile-label">{t('profile.lastName')}:</strong> <span className="profile-value">{lastName || '—'}</span></div>
                   <div><strong className="profile-label">{t('profile.email')}:</strong> <span className="profile-value">{email || '—'}</span></div>
-                  <div><strong className="profile-label">{t('profile.role')}:</strong> <span className="profile-value">{displayRole || '—'}</span></div>
+                  <div><strong className="profile-label">{t('profile.role')}:</strong> <span className="profile-value">{displayRole || t('profile.userFallback')}</span></div>
                 </div>
 
                 <div className="profile-controls">

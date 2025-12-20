@@ -76,7 +76,7 @@ export default function Login() {
               className="login-back"
               onClick={() => navigate('/')}
             >
-              ← Back
+              {t('profile.back')}
             </button>
           </div>
           <h2>{t('login.title')}</h2>

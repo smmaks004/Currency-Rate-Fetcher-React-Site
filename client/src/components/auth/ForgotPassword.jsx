@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './ForgotPassword.css';
 
 export const defaultRecoveryOptions = [
-  {
-    id: 'email',
-    title: 'Recover password via email',
-  },
+  { id: 'email' },
 ];
 
 export default function ForgotPassword({
@@ -31,6 +29,7 @@ export default function ForgotPassword({
   const [statusText, setStatusText] = useState('');
   const [statusKind, setStatusKind] = useState('info'); // 'info' | 'error' | 'success'
 
+  const { t } = useTranslation();
   const options = useMemo(() => recoveryOptions ?? defaultRecoveryOptions, [recoveryOptions]);
 
   const handleBack = () => {
@@ -87,7 +86,7 @@ export default function ForgotPassword({
       // If account explicitly blocked/deleted -> show error
       if (resp.status === 403) {
         setStatusKind('error');
-        setStatusText(data?.error || 'Account is deleted');
+        setStatusText(data?.error || t('forgot.accountDeleted'));
         setSending(false);
         return;
       }
@@ -95,14 +94,14 @@ export default function ForgotPassword({
       // Other server errors -> show generic server error
       if (!resp.ok) {
         setStatusKind('error');
-        setStatusText(data?.error || 'Server error');
+        setStatusText(data?.error || t('forgot.serverError'));
         setSending(false);
         return;
       }
 
       // Success
       setStatusKind('info');
-      setStatusText('Code sent (check spam folder too)');
+      setStatusText(t('forgot.codeSent'));
       onSubmitEmail?.(trimmedEmail);
       
       setCodeChars(Array.from({ length: 6 }, () => ''));
@@ -114,7 +113,7 @@ export default function ForgotPassword({
 
     } catch (err) {
       setStatusKind('error');
-      setStatusText(err?.message || 'Network error');
+      setStatusText(err?.message || t('forgot.networkError'));
     } finally {
       setSending(false);
     }
@@ -159,7 +158,7 @@ export default function ForgotPassword({
 
   // 2. Verify Code
   const verifyCode = async (code) => {
-    setStatusText('Verifying...');
+    setStatusText(t('forgot.verifying'));
     setStatusKind('info');
     setSending(true);
 
@@ -175,13 +174,13 @@ export default function ForgotPassword({
 
       if (!resp.ok || !data.ok) {
         setStatusKind('error');
-        setStatusText(data?.error || 'Invalid or expired code');
+        setStatusText(data?.error || t('forgot.invalidOrExpiredCode'));
         setSending(false);
         return;
       }
 
       setStatusKind('success');
-      setStatusText('Code verified.');
+      setStatusText(t('forgot.codeVerified'));
       setResetToken(data.resetToken); // Store token
       setStep('reset');
       
@@ -221,24 +220,24 @@ export default function ForgotPassword({
     setStatusKind('info');
 
     if (!resetPw || !resetPwRepeat) {
-      setStatusText('Enter and repeat new password.');
+      setStatusText(t('forgot.enterAndRepeat'));
       setStatusKind('error');
       return;
     }
     if (resetPw.length < 6) {
-      setStatusText('Password must be at least 6 characters.');
+      setStatusText(t('forgot.passwordTooShort'));
       setStatusKind('error');
       return;
     }
     // Require at least one digit or special character (keep same rule as user creation)
     const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(resetPw);
     if (!hasDigitOrSymbol) {
-      setStatusText('Password must include at least one digit or special character');
+      setStatusText(t('forgot.passwordRequiresDigitSymbol'));
       setStatusKind('error');
       return;
     }
     if (resetPw !== resetPwRepeat) {
-      setStatusText('Passwords do not match.');
+      setStatusText(t('forgot.passwordsDoNotMatch'));
       setStatusKind('error');
       return;
     }
@@ -259,13 +258,13 @@ export default function ForgotPassword({
       const data = await resp.json().catch(() => ({}));
 
       if (!resp.ok || !data.ok) {
-        setStatusText(data?.error || 'Failed to update password');
+        setStatusText(data?.error || t('forgot.updateFailed'));
         setStatusKind('error');
         setSending(false);
         return;
       }
 
-      setStatusText('Password changed successfully! Redirecting...');
+      setStatusText(t('forgot.passwordChangedSuccess'));
       setStatusKind('success');
       
       setTimeout(() => {
@@ -280,7 +279,7 @@ export default function ForgotPassword({
       }, 2000);
 
     } catch (err) {
-      setStatusText(err?.message || 'Network error');
+      setStatusText(err?.message || t('forgot.networkError'));
       setStatusKind('error');
       setSending(false);
     }
@@ -290,7 +289,7 @@ export default function ForgotPassword({
     <div className="forgot-card" role="region" aria-label="Password recovery">
       <div className="forgot-top">
         <button type="button" className="forgot-back" onClick={handleBack}>
-          ← Back
+          {t('profile.back')}
         </button>
       </div>
 
@@ -304,7 +303,7 @@ export default function ForgotPassword({
                 className="forgot-option"
                 onClick={() => handleOptionClick(opt.id)}
               >
-                {opt.title}
+                {opt.id === 'email' ? t('forgot.recoverViaEmail') : opt.title}
               </button>
             ))}
           </div>
@@ -313,22 +312,22 @@ export default function ForgotPassword({
 
       {step === 'email' && (
         <div className="forgot-content">
-          <h3 className="forgot-title">Recover password via email</h3>
+          <h3 className="forgot-title">{t('forgot.titleEmail')}</h3>
           <form className="forgot-form" onSubmit={handleSubmitEmail}>
-            <label className="forgot-label" htmlFor="forgot-email">Email</label>
+            <label className="forgot-label" htmlFor="forgot-email">{t('login.emailLabel')}</label>
             <input
               id="forgot-email"
               className="forgot-input"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              placeholder={t('login.emailPlaceholder')}
               required
               autoFocus
               maxLength={255}
             />
             <button className="forgot-submit" type="submit" disabled={sending}>
-              {sending ? 'Sending…' : 'Send code'}
+              {sending ? t('forgot.sending') : t('forgot.sendCode')}
             </button>
             {statusText && <div className={`forgot-status forgot-status--${statusKind}`}>{statusText}</div>}
           </form>
@@ -337,9 +336,9 @@ export default function ForgotPassword({
 
       {step === 'code' && (
         <div className="forgot-content">
-          <h3 className="forgot-title">Enter the 6-digit code</h3>
+          <h3 className="forgot-title">{t('forgot.enterCodeTitle')}</h3>
           <p style={{fontSize: '0.9rem', color: '#666', marginBottom: '1rem'}}>
-            Sent to {email}
+            {t('forgot.sentTo', { email })}
           </p>
           <div className="code-inputs" aria-label="6 character code">
             {codeChars.map((ch, idx) => (
@@ -366,35 +365,35 @@ export default function ForgotPassword({
 
       {step === 'reset' && (
         <div className="forgot-content">
-          <h3 className="forgot-title">Set new password</h3>
+          <h3 className="forgot-title">{t('forgot.setNewPassword')}</h3>
           <form className="forgot-form" onSubmit={handleResetPassword}>
-            <label className="forgot-label" htmlFor="reset-password">New password</label>
+            <label className="forgot-label" htmlFor="reset-password">{t('forgot.newPasswordLabel')}</label>
             <input
               id="reset-password"
               className="forgot-input"
               type="password"
               value={resetPw}
               onChange={e => setResetPw(e.target.value)}
-              placeholder="Enter new password"
+              placeholder={t('forgot.enterNewPassword')}
               minLength={6}
               maxLength={50}
               required
               autoFocus
             />
-            <label className="forgot-label" htmlFor="reset-password-repeat">Repeat password</label>
+            <label className="forgot-label" htmlFor="reset-password-repeat">{t('forgot.repeatPasswordLabel')}</label>
             <input
               id="reset-password-repeat"
               className="forgot-input"
               type="password"
               value={resetPwRepeat}
               onChange={e => setResetPwRepeat(e.target.value)}
-              placeholder="Repeat new password"
+              placeholder={t('forgot.repeatNewPassword')}
               minLength={6}
               maxLength={50}
               required
             />
             <button className="forgot-submit" type="submit" disabled={sending}>
-              {sending ? 'Saving…' : 'Save new password'}
+              {sending ? t('forgot.saving') : t('forgot.saveNewPassword')}
             </button>
             {statusText && <div className={`forgot-status forgot-status--${statusKind}`}>{statusText}</div>}
           </form>

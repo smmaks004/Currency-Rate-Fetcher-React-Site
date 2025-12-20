@@ -2,6 +2,8 @@
   "header": {
     "brand": "Exchange Explorer",
     "currencyManagement": "Currency management",
+    "marginManagement": "Margin management",
+    "adminManagement": "Admin Management",
     "login": "Login",
     "profile": "Profile",
     "logout": "Logout",
@@ -47,6 +49,13 @@
     "passwordMismatch": "Passwords do not match",
     "passwordChangeFailed": "Password change failed",
     "passwordUpdated": "Password updated"
+    ,"firstNameRequired": "First name is required"
+    ,"lastNameRequired": "Last name is required"
+    ,"emailRequired": "Email is required"
+    ,"passwordConfirmRequired": "Please confirm password"
+    ,"passwordTooShort": "Password must be at least 6 characters long"
+    ,"passwordRequiresDigitSymbol": "Password must include at least one digit or special character"
+    ,"userFallback": "User"
   },
   "currencyManagement": {
     "title": "Currency management",
@@ -150,7 +159,11 @@
     "next": "Next",
     "last": "Last",
     "page": "Page {{page}} of {{total}}",
-    "createNew": "Create New +"
+    "createNew": "Create New +",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "edit": "Edit"
   },
   "marginChart": {
     "title": "Margin History",
@@ -187,10 +200,124 @@
     "errorCode": "Currency code must be exactly 3 letters",
     "errorRequest": "Request failed",
     "errorCreateFailed": "Create failed ({{status}})",
-    "success": "Currency \"{{code}}\" created successfully."
+    "success": "Currency \"{{code}}\" created successfully.",
+    "namePlaceholder": "Currency name (optional)"
+  },
+
+  "createUser": {
+    "title": "Create New User",
+    "firstNameLabel": "First Name",
+    "firstNamePlaceholder": "Enter first name",
+    "lastNameLabel": "Last Name",
+    "lastNamePlaceholder": "Enter last name",
+    "emailLabel": "Email",
+    "emailPlaceholder": "Enter email",
+    "roleLabel": "Role",
+    "roleUser": "User",
+    "roleAdmin": "Admin",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Enter password",
+    "create": "Create",
+    "creating": "Creating...",
+    "cancel": "Cancel",
+    "firstNameRequired": "First name is required",
+    "lastNameRequired": "Last name is required",
+    "emailRequired": "Email is required",
+    "invalidEmail": "Please enter a valid email address",
+    "passwordRequired": "Password is required",
+    "passwordLength": "Password must be at least 6 characters long",
+    "passwordRequirements": "Password must include at least one digit or special character"
+  },
+
+  "forgot": {
+    "recoverViaEmail": "Recover password via email",
+    "titleEmail": "Recover password via email",
+    "sending": "Sending...",
+    "sendCode": "Send code",
+    "codeSent": "Code sent (check spam folder too)",
+    "accountDeleted": "Account is deleted",
+    "serverError": "Server error",
+    "networkError": "Network error, please try again",
+    "verifying": "Verifying...",
+    "invalidOrExpiredCode": "Invalid or expired code",
+    "codeVerified": "Code verified.",
+    "enterCodeTitle": "Enter the 6-digit code",
+    "sentTo": "Sent to {{email}}",
+    "setNewPassword": "Set new password",
+    "newPasswordLabel": "New password",
+    "enterNewPassword": "Enter new password",
+    "repeatPasswordLabel": "Repeat password",
+    "repeatNewPassword": "Repeat new password",
+    "saving": "Saving...",
+    "saveNewPassword": "Save new password",
+    "enterAndRepeat": "Enter and repeat new password.",
+    "passwordTooShort": "Password must be at least 6 characters.",
+    "passwordRequiresDigitSymbol": "Password must include at least one digit or special character",
+    "passwordsDoNotMatch": "Passwords do not match.",
+    "updateFailed": "Failed to update password",
+    "passwordChangedSuccess": "Password changed successfully! Redirecting..."
+  },
+  "admin": {
+    "accessRestricted": "Access restricted to administrators.",
+    "userTable": "User Table"
   },
   "currenciesList": {
     "title": "List of Ids from the Currencies table"
+  },
+  "ExportTable": {
+    "formatNameCsv": "CSV",
+    "formatNameExcel": "Excel",
+    "formatNamePdf": "PDF (Preview)",
+    "filenameLabel": "Filename:",
+    "downloadButtonPdf": "Generate & Preview PDF",
+    "downloadButtonDefault": "Download file",
+    "helpCsv": "CSV: values separated by commas.",
+    "helpXlsx": "Excel: .xlsx file.",
+    "helpPdf": "PDF: opens the built-in viewer below.",
+    "pdfPreviewTitle": "PDF Preview",
+    "close": "Close",
+    "overlayAria": "Export in progress",
+    "tableNotFound": "Table not found or empty."
+  },
+  "UserTable": {
+    "title": "Users",
+    "createNew": "Create New +",
+    "loading": "Loading users...",
+    "headerFirstName": "First Name",
+    "headerLastName": "Last Name",
+    "headerEmail": "Email",
+    "headerRole": "Role",
+    "headerCreatedAt": "Created At",
+    "headerLastLogin": "Last Login",
+    "headerStatus": "Status",
+    "actions": "Actions",
+    "roleOptionUser": "User",
+    "roleOptionAdmin": "Admin",
+    "statusActive": "Active",
+    "statusDeactivated": "Deactivated",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "changeRole": "Change Role",
+    "noData": "No users found",
+    "modalDeactivateTitle": "Deactivate user?",
+    "modalActivateTitle": "Activate user?",
+    "modalConfirmAction": "Are you sure you want to {{action}} {{user}}?",
+    "modalNo": "No",
+    "modalYes": "Yes",
+    "working": "Working...",
+    "changeRoleTitle": "Change role?",
+    "changeRoleFor": "Change role for {{user}}. Are you sure?",
+    "changeRoleLabel": "Select new role",
+    "paginationShowing": "Showing {{from}} - {{to}} of {{total}}",
+    "paginationFirst": "« First",
+    "paginationPrev": "‹ Prev",
+    "paginationPage": "Page {{page}} / {{total}}",
+    "paginationNext": "Next ›",
+    "paginationLast": "Last »",
+    "paginationPageLabel": "Page {{page}} / {{total}}",
+    "errorLoadUsers": "Failed to load users",
+    "errorUpdateUser": "Failed to update user",
+    "errorChangeRole": "Failed to change role"
   },
   "routes": {
     "loading": "Loading..."

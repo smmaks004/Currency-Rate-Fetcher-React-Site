@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './CreateUser.css';
 
 export default function CreateUser({ isOpen, onClose, onSuccess }) {
+	const { t } = useTranslation();
 	// Form state
 	const [firstName, setFirstName] = useState('');
 	const [lastName, setLastName] = useState('');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
-	const [role, setRole] = useState('User');
+	const [role, setRole] = useState('user');
 	const [loading, setLoading] = useState(false);
 
 	// UI state
@@ -37,39 +39,39 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 
 		// Frontend Validation
 		if (!firstName.trim()) {
-			setCreateError('First name is required');
+			setCreateError(t('createUser.firstNameRequired'));
 			return;
 		}
 
 		if (!lastName.trim()) {
-			setCreateError('Last name is required');
+			setCreateError(t('createUser.lastNameRequired'));
 			return;
 		}
 
 		if (!email.trim()) {
-			setCreateError('Email is required');
+			setCreateError(t('createUser.emailRequired'));
 			return;
 		}
 
 		if (!validateEmail(email)) {
-			setCreateError('Please enter a valid email address');
+			setCreateError(t('createUser.invalidEmail'));
 			return;
 		}
 
 		if (!password) {
-			setCreateError('Password is required');
+			setCreateError(t('createUser.passwordRequired'));
 			return;
 		}
 
 		if (password.length < 6) {
-			setCreateError('Password must be at least 6 characters long');
+			setCreateError(t('createUser.passwordLength'));
 			return;
 		}
 
 		// Require at least one digit or special character
 		const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(password);
 		if (!hasDigitOrSymbol) {
-			setCreateError('Password must include at least one digit or special character');
+			setCreateError(t('createUser.passwordRequirements'));
 			return;
 		}
 
@@ -115,15 +117,15 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 	return (
 		<div className="modal-overlay">
 			<div className="modal-content">
-				<div className="modal-title">Create New User</div>
+				<div className="modal-title">{t('createUser.title')}</div>
 
 				{createError && <div className="error-msg">{createError}</div>}
 
 				<div className="form-group">
-					<label>First Name</label>
+					<label>{t('createUser.firstNameLabel')}</label>
 					<input
 						type="text"
-						placeholder="Enter first name"
+						placeholder={t('createUser.firstNamePlaceholder')}
 						value={firstName}
 						onChange={(e) => setFirstName(e.target.value)}
 						disabled={loading}
@@ -132,10 +134,10 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 				</div>
 
 				<div className="form-group">
-					<label>Last Name</label>
+					<label>{t('createUser.lastNameLabel')}</label>
 					<input
 						type="text"
-						placeholder="Enter last name"
+						placeholder={t('createUser.lastNamePlaceholder')}
 						value={lastName}
 						onChange={(e) => setLastName(e.target.value)}
 						disabled={loading}
@@ -144,10 +146,10 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 				</div>
 
 				<div className="form-group">
-					<label>Email</label>
+					<label>{t('createUser.emailLabel')}</label>
 					<input
 						type="email"
-						placeholder="Enter email"
+						placeholder={t('createUser.emailPlaceholder')}
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						disabled={loading}
@@ -155,22 +157,22 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 				</div>
 
 				<div className="form-group">
-					<label>Role</label>
+					<label>{t('createUser.roleLabel')}</label>
 					<select
 						value={role}
 						onChange={(e) => setRole(e.target.value)}
 						disabled={loading}
 					>
-						<option value="user">User</option>
-						<option value="admin">Admin</option>
+						<option value="user">{t('createUser.roleUser')}</option>
+						<option value="admin">{t('createUser.roleAdmin')}</option>
 					</select>
 				</div>
 
 				<div className="form-group">
-					<label>Password</label>
+					<label>{t('createUser.passwordLabel')}</label>
 					<input
 						type="password"
-						placeholder="Enter password"
+						placeholder={t('createUser.passwordPlaceholder')}
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 						disabled={loading}
@@ -180,10 +182,10 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 
 				<div className="modal-actions">
 					<button className="btn-cancel" onClick={handleClose} disabled={loading}>
-						Cancel
+						{t('createUser.cancel')}
 					</button>
 					<button className="btn-confirm" onClick={handleSubmit} disabled={loading}>
-						{loading ? 'Creating...' : 'Create User'}
+						{loading ? t('createUser.creating') : t('createUser.create')}
 					</button>
 				</div>
 			</div>

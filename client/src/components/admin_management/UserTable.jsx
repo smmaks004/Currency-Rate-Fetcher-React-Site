@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import CreateUser from './subsections/CreateUser';
 
 import '../common/TableStyles.css';
@@ -39,7 +40,9 @@ const userDisplayName = (user) => {
 
 
 
+
 export default function UserTable() {
+	const { t } = useTranslation();
 	const [users, setUsers] = useState([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
@@ -60,7 +63,7 @@ export default function UserTable() {
 				const res = await fetch('/api/users', { credentials: 'include', signal: controller.signal });
 				if (!res.ok) {
 					const payload = await res.json().catch(() => ({}));
-					throw new Error(payload && payload.error ? payload.error : 'Failed to load users');
+					throw new Error(payload && payload.error ? payload.error : t('UserTable.errorLoadUsers'));
 				}
 				const data = await res.json();
 				if (cancelled) return;
@@ -80,7 +83,7 @@ export default function UserTable() {
 				setError('');
 			} catch (err) {
 				if (controller.signal.aborted || cancelled) return;
-				setError(err.message || 'Failed to load users');
+				setError(err.message || t('UserTable.errorLoadUsers'));
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
@@ -184,13 +187,13 @@ export default function UserTable() {
 
 			const data = await res.json().catch(() => ({}));
 			if (!res.ok) {
-				throw new Error(data && data.error ? data.error : 'Failed to update user');
+				throw new Error(data && data.error ? data.error : t('UserTable.errorUpdateUser'));
 			}
 
 			setActionModal(null);
 			loadUsers();
 		} catch (err) {
-			setError(err.message || 'Failed to update user');
+			setError(err.message || t('UserTable.errorUpdateUser'));
 			setActionModal((prev) => (prev ? { ...prev, loading: false } : prev));
 		}
 	};
@@ -216,13 +219,13 @@ export default function UserTable() {
 
 			const data = await res.json().catch(() => ({}));
 			if (!res.ok) {
-				throw new Error(data && data.error ? data.error : 'Failed to change role');
+				throw new Error(data && data.error ? data.error : t('UserTable.errorChangeRole'));
 			}
 
 			setRoleModal(null);
 			loadUsers();
 		} catch (err) {
-			setError(err.message || 'Failed to change role');
+			setError(err.message || t('UserTable.errorChangeRole'));
 			setRoleModal((prev) => (prev ? { ...prev, loading: false } : prev));
 		}
 	};
@@ -232,13 +235,13 @@ export default function UserTable() {
 			{error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
 
 			<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-				<div className="headline">Users</div>
+				<div className="headline">{t('UserTable.title')}</div>
 				<button 
 					className="action-btn" 
 					onClick={() => setIsCreateModalOpen(true)}
 					style={{ fontSize: '0.95rem', fontWeight: '500' }}
 				>
-					Create New +
+					{t('UserTable.createNew')}
 				</button>
 			</div>
 
@@ -251,21 +254,21 @@ export default function UserTable() {
 			<div className="table-wrapper table-surface">
 				{loading && (
 					<div className="table-loading">
-						<div className="spinner" aria-hidden="true" />
-						<span>Loading users...</span>
+						<div className="spinner" aria-hidden={true} />
+						<span>{t('UserTable.loading')}</span>
 					</div>
 				)}
 				<table className="curr-table">
 					<thead>
 						<tr>
-							<th onClick={() => onHeaderClick('firstName')}>First Name {sortBy === 'firstName' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-							<th onClick={() => onHeaderClick('lastName')}>Last Name {sortBy === 'lastName' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-							<th onClick={() => onHeaderClick('email')}>Email {sortBy === 'email' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-							<th onClick={() => onHeaderClick('role')}>Role {sortBy === 'role' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-							<th onClick={() => onHeaderClick('createdAt')}>Created At {sortBy === 'createdAt' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-							<th onClick={() => onHeaderClick('lastLogin')}>Last Login {sortBy === 'lastLogin' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-							<th onClick={() => onHeaderClick('isDeleted')}>Status {sortBy === 'isDeleted' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-							<th style={{ textAlign: 'center' }}>Actions</th>
+							<th onClick={() => onHeaderClick('firstName')}>{t('UserTable.headerFirstName')} {sortBy === 'firstName' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+							<th onClick={() => onHeaderClick('lastName')}>{t('UserTable.headerLastName')} {sortBy === 'lastName' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+							<th onClick={() => onHeaderClick('email')}>{t('UserTable.headerEmail')} {sortBy === 'email' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+							<th onClick={() => onHeaderClick('role')}>{t('UserTable.headerRole')} {sortBy === 'role' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+							<th onClick={() => onHeaderClick('createdAt')}>{t('UserTable.headerCreatedAt')} {sortBy === 'createdAt' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+							<th onClick={() => onHeaderClick('lastLogin')}>{t('UserTable.headerLastLogin')} {sortBy === 'lastLogin' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+							<th onClick={() => onHeaderClick('isDeleted')}>{t('UserTable.headerStatus')} {sortBy === 'isDeleted' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+							<th style={{ textAlign: 'center' }}>{t('UserTable.actions')}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -274,12 +277,12 @@ export default function UserTable() {
 								<td>{u.firstName || '—'}</td>
 								<td>{u.lastName || '—'}</td>
 								<td>{u.email || '—'}</td>
-								<td>{formatRole(u.role)}</td>
+								<td>{String((u.role || '').toLowerCase()) === 'admin' ? t('UserTable.roleOptionAdmin') : t('UserTable.roleOptionUser')}</td>
 								<td>{formatDateTime(u.createdAt)}</td>
 								<td>{formatDateTime(u.lastLogin)}</td>
 								<td>
 									<span className={`status-pill ${u.isDeleted ? 'user-status-deleted' : 'user-status-active'}`}>
-										{u.isDeleted ? 'Deactivated' : 'Active'}
+										{u.isDeleted ? t('UserTable.statusDeactivated') : t('UserTable.statusActive')}
 									</span>
 								</td>
 								<td>
@@ -290,7 +293,7 @@ export default function UserTable() {
 											onClick={() => openActionModal(u, u.isDeleted ? 'activate' : 'deactivate')}
 											disabled={loading || (actionModal && actionModal.loading)}
 										>
-											{u.isDeleted ? 'Activate' : 'Deactivate'}
+										{u.isDeleted ? t('UserTable.activate') : t('UserTable.deactivate')}
 										</button>
 										<button
 											className="action-btn ghost"
@@ -298,14 +301,14 @@ export default function UserTable() {
 											onClick={() => openRoleModal(u)}
 											disabled={loading || (roleModal && roleModal.loading)}
 										>
-											Change Role
+										{t('UserTable.changeRole')}
 										</button>
 									</div>
 								</td>
 							</tr>
 						))}
 						{pageRows.length === 0 && !loading && (
-							<tr><td colSpan={7} className="no-data-cell">No users found</td></tr>
+							<tr><td colSpan={7} className="no-data-cell">{t('UserTable.noData')}</td></tr>
 						)}
 					</tbody>
 				</table>
@@ -314,14 +317,14 @@ export default function UserTable() {
 			{actionModal && (
 				<div className="modal-overlay">
 					<div className="modal-content">
-						<div className="modal-title">{actionModal.mode === 'deactivate' ? 'Deactivate user?' : 'Activate user?'}</div>
+						<div className="modal-title">{actionModal.mode === 'deactivate' ? t('UserTable.modalDeactivateTitle') : t('UserTable.modalActivateTitle')}</div>
 						<p style={{ margin: '4px 0 12px', color: '#d4d4d4' }}>
-							Are you sure you want to {actionModal.mode === 'deactivate' ? 'deactivate' : 'activate'} {userDisplayName(actionModal.user)}?
+							{t('UserTable.modalConfirmAction', { action: actionModal.mode === 'deactivate' ? t('UserTable.deactivate') : t('UserTable.activate'), user: userDisplayName(actionModal.user) })}
 						</p>
 						<div className="modal-actions">
-							<button className="btn-cancel" onClick={closeActionModal} disabled={actionModal.loading}>No</button>
+							<button className="btn-cancel" onClick={closeActionModal} disabled={actionModal.loading}>{t('UserTable.modalNo')}</button>
 							<button className="btn-confirm" onClick={handleConfirmAction} disabled={actionModal.loading}>
-								{actionModal.loading ? 'Working...' : 'Yes'}
+								{actionModal.loading ? t('UserTable.working') : t('UserTable.modalYes')}
 							</button>
 						</div>
 					</div>
@@ -331,24 +334,24 @@ export default function UserTable() {
 			{roleModal && (
 				<div className="modal-overlay">
 					<div className="modal-content">
-						<div className="modal-title">Change role?</div>
+						<div className="modal-title">{t('UserTable.changeRoleTitle')}</div>
 						<p style={{ margin: '4px 0 12px', color: '#d4d4d4' }}>
-							Change role for {userDisplayName(roleModal.user)}. Are you sure?
+							{t('UserTable.changeRoleFor', { user: userDisplayName(roleModal.user) })}
 						</p>
-						<label className="muted" style={{ display: 'block', marginBottom: 8 }}>Select new role</label>
+						<label className="muted" style={{ display: 'block', marginBottom: 8 }}>{t('UserTable.changeRoleLabel')}</label>
 						<select
 							value={roleModal.role}
 							onChange={(e) => setRoleModal((prev) => (prev ? { ...prev, role: e.target.value } : prev))}
 							disabled={roleModal.loading}
 							style={{ width: '100%', padding: '8px 10px', marginBottom: 12 }}
 						>
-							<option value="user">User</option>
-							<option value="admin">Admin</option>
+							<option value="user">{t('UserTable.roleOptionUser')}</option>
+							<option value="admin">{t('UserTable.roleOptionAdmin')}</option>
 						</select>
 						<div className="modal-actions">
-							<button className="btn-cancel" onClick={closeRoleModal} disabled={roleModal.loading}>No</button>
+							<button className="btn-cancel" onClick={closeRoleModal} disabled={roleModal.loading}>{t('UserTable.modalNo')}</button>
 							<button className="btn-confirm" onClick={handleConfirmRoleChange} disabled={roleModal.loading}>
-								{roleModal.loading ? 'Working...' : 'Yes'}
+								{roleModal.loading ? t('UserTable.working') : t('UserTable.modalYes')}
 							</button>
 						</div>
 					</div>
@@ -356,13 +359,13 @@ export default function UserTable() {
 			)}
 
 			<div className="pagination">
-				<div className="muted">Showing {Math.min((page - 1) * pageSize + 1, total)} - {Math.min(page * pageSize, total)} of {total}</div>
+				<div className="muted">{t('UserTable.paginationShowing', { from: Math.min((page - 1) * pageSize + 1, total), to: Math.min(page * pageSize, total), total })}</div>
 				<div className="pagination-controls">
-					<button onClick={() => setPage(1)} disabled={page === 1}>« First</button>
-					<button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>‹ Prev</button>
-					<span>Page {page} / {totalPages}</span>
-					<button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next ›</button>
-					<button onClick={() => setPage(totalPages)} disabled={page === totalPages}>Last »</button>
+					<button onClick={() => setPage(1)} disabled={page === 1}>{t('UserTable.paginationFirst')}</button>
+					<button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>{t('UserTable.paginationPrev')}</button>
+					<span>{t('UserTable.paginationPage', { page, total: totalPages })}</span>
+					<button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>{t('UserTable.paginationNext')}</button>
+					<button onClick={() => setPage(totalPages)} disabled={page === totalPages}>{t('UserTable.paginationLast')}</button>
 				</div>
 			</div>
 		</div>

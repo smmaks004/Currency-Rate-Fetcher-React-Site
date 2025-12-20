@@ -43,13 +43,13 @@ export default function Header() {
               {t('header.currencyManagement')}
             </Link>
 
-            <Link to="/margin_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
-              Margin management
-            </Link>
+              <Link to="/margin_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
+                {t('header.marginManagement')}
+              </Link>
 
             {user.Role === 'admin' && (
               <Link to="/admin_management" className="btn-link" style={{ color: '#cbd5e1', textDecoration: 'none' }}>
-                Admin Management
+                {t('header.adminManagement')}
               </Link>
             )}
           </div>

@@ -281,12 +281,17 @@ export default function MarginTable() {
                 <td className="edit-cell">
                   {editingId === row.key ? (
                     <div className="edit-actions">
-                      <button className="btn-confirm" onClick={() => finishEdit()} disabled={editingLoading}>{editingLoading ? 'Saving...' : 'Save'}</button>
-                      <button className="btn-cancel" onClick={() => setEditingId(null)} disabled={editingLoading}>Cancel</button>
+                      <button className="btn-confirm" onClick={() => finishEdit()} disabled={editingLoading}>{editingLoading ? t('marginTable.saving') : t('marginTable.save')}</button>
+                      <button className="btn-cancel" onClick={() => setEditingId(null)} disabled={editingLoading}>{t('marginTable.cancel')}</button>
                       {editingError && <div className="error-msg">{editingError}</div>}
                     </div>
                   ) : (
-                    <button className="icon-btn" title={'Edit'} onClick={() => startEdit(row.key)}>✎</button>
+                    <button 
+                    className="icon-btn" 
+                    title={t('marginTable.edit')} 
+                    onClick={() => startEdit(row.key)}
+                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', transform: 'scaleX(-1)', display: 'inline-block', paddingBottom: 0, paddingTop: 0 }}
+                    >✎</button>
                   )}
                 </td>
               </tr>

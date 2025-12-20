@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
 // Import libraries for generating real PDF
 import jsPDF from 'jspdf';
@@ -41,6 +42,7 @@ function readVisibleTable() {
 }
 
 export default function ExportTable({ rows: propRows, headers: propHeaders, filename: propFilename }) {
+  const { t } = useTranslation();
   const [format, setFormat] = useState('csv');
   const [filename, setFilename] = useState(propFilename || 'currency_export');
   const [isExporting, setIsExporting] = useState(false);
@@ -97,7 +99,7 @@ export default function ExportTable({ rows: propRows, headers: propHeaders, file
         }
 
         if (!headers.length || !rows.length) {
-          alert('Table not found or empty.');
+          alert(t('ExportTable.tableNotFound'));
           return;
         }
 
@@ -166,20 +168,20 @@ export default function ExportTable({ rows: propRows, headers: propHeaders, file
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
           <input type="radio" name="format" value="csv" checked={format === 'csv'} onChange={() => setFormat('csv')} />
-          <strong>CSV</strong>
+          <strong>{t('ExportTable.formatNameCsv')}</strong>
         </label>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
           <input type="radio" name="format" value="xlsx" checked={format === 'xlsx'} onChange={() => setFormat('xlsx')} />
-          <strong>Excel</strong>
+          <strong>{t('ExportTable.formatNameExcel')}</strong>
         </label>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
           <input type="radio" name="format" value="pdf" checked={format === 'pdf'} onChange={() => setFormat('pdf')} />
-          <strong>PDF (Preview)</strong>
+          <strong>{t('ExportTable.formatNamePdf')}</strong>
         </label>
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <label style={{ minWidth: 80 }}>Filename:</label>
+        <label style={{ minWidth: 80 }}>{t('ExportTable.filenameLabel')}</label>
         <input value={filename} onChange={(e) => setFilename(e.target.value)} style={{ padding: '6px 8px', flex: 1 }} />
       </div>
 
@@ -189,26 +191,26 @@ export default function ExportTable({ rows: propRows, headers: propHeaders, file
           onClick={handleAction} 
           style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px' }}
         >
-          {format === 'pdf' ? 'Generate & Preview PDF' : 'Download file'}
+          {format === 'pdf' ? t('ExportTable.downloadButtonPdf') : t('ExportTable.downloadButtonDefault')}
         </button>
       </div>
 
       <div style={{ color: '#6b7280', fontSize: 13 }}>
-        - CSV: values separated by commas.<br />
-        - Excel: .xlsx file.<br />
-        - PDF: opens the built-in viewer below.
+        - {t('ExportTable.helpCsv')}<br />
+        - {t('ExportTable.helpXlsx')}<br />
+        - {t('ExportTable.helpPdf')}
       </div>
 
       {/* === PDF PREVIEW BLOCK === */}
       {showPdfViewer && pdfUrl && format === 'pdf' && (
         <div style={{ marginTop: 20, border: '1px solid #ccc', borderRadius: 4, overflow: 'hidden' }}>
           <div style={{ background: '#f0f0f0', padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ccc' }}>
-            <span style={{ fontWeight: 'bold' }}>PDF Preview</span>
+            <span style={{ fontWeight: 'bold' }}>{t('ExportTable.pdfPreviewTitle')}</span>
             <button 
               onClick={() => setShowPdfViewer(false)} 
               style={{ cursor: 'pointer', padding: '4px 8px' }}
             >
-              Close
+              {t('ExportTable.close')}
             </button>
           </div>
           <iframe 
@@ -216,7 +218,7 @@ export default function ExportTable({ rows: propRows, headers: propHeaders, file
             width="100%" 
             height="700px" 
             style={{ border: 'none', display: 'block' }}
-            title="PDF Preview"
+            title={t('ExportTable.pdfPreviewTitle')}
           />
         </div>
       )}
@@ -233,7 +235,7 @@ export default function ExportTable({ rows: propRows, headers: propHeaders, file
             @keyframes export-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
           `}</style>
           <div
-            aria-label="Export in progress"
+            aria-label={t('ExportTable.overlayAria')}
             style={{
               width: 72, height: 72,
               border: '8px solid rgba(0,0,0,0.1)',
