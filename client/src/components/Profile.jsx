@@ -29,7 +29,7 @@ export default function Profile() {
     ? user.Role.charAt(0).toUpperCase() + user.Role.slice(1).toLowerCase()
     : 'User';
 
-  // AI chat (Ollama)
+  /* AI chat (moved to separate component)
   const [aiMessages, setAiMessages] = useState([
     { role: 'system', content: 'You are a helpful assistant.' }
   ]);
@@ -40,7 +40,6 @@ export default function Profile() {
   const aiWordQueueRef = useRef([]);
   const aiFlushTimerRef = useRef(null);
 
-
   useEffect(() => {
     return () => {
       if (aiFlushTimerRef.current) {
@@ -49,6 +48,7 @@ export default function Profile() {
       }
     };
   }, []);
+  */
 
   React.useEffect(() => {
     setFirstName(user?.FirstName || '');
@@ -143,112 +143,11 @@ export default function Profile() {
     navigate('/auth/login');
   };
 
+  /* AI sending function moved to `AiChat` component. Keeping placeholder here in case it's referenced elsewhere.
   const onSendAi = async () => {
-    const text = aiInput.trim();
-    if (!text || aiSending) return;
-
-    setAiError('');
-    setAiSending(true);
-
-    const assistantId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const nextMessages = [...aiMessages, { role: 'user', content: text }, { role: 'assistant', content: '', id: assistantId }];
-    setAiMessages(nextMessages);
-    setAiInput('');
-
-    const tokenize = (s) => (typeof s === 'string' ? s.split(/(\s+)/).filter(Boolean) : []);
-
-    const ensureFlushTimer = () => {
-      if (aiFlushTimerRef.current) return;
-      aiFlushTimerRef.current = setInterval(() => {
-        const part = aiWordQueueRef.current.shift();
-        if (!part) {
-          // Stop timer if nothing to flush
-          clearInterval(aiFlushTimerRef.current);
-          aiFlushTimerRef.current = null;
-          return;
-        }
-
-        setAiMessages((prev) => prev.map((m) => {
-          if (m && m.id === assistantId) return { ...m, content: (m.content || '') + part };
-          return m;
-        }));
-      }, 35);
-    };
-
-    try {
-      const res = await fetch('/api/ai/chat-stream', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages.filter((m) => m.role !== 'assistant' || m.id !== assistantId) })
-      });
-
-      if (res.status === 401) {
-        const err = await res.json().catch(() => null);
-        const msg = err && err.error ? err.error : 'Unauthorized';
-        await handleUnauthorized(setAiError, msg);
-        return;
-      }
-
-      if (!res.ok || !res.body) {
-        const bodyText = await res.text().catch(() => '');
-        setAiError(bodyText || 'AI request failed');
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let buf = '';
-      let sawAnyDelta = false;
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buf += decoder.decode(value, { stream: true });
-        while (true) {
-          const nl = buf.indexOf('\n');
-          if (nl === -1) break;
-
-          const line = buf.slice(0, nl).trim();
-          buf = buf.slice(nl + 1);
-          if (!line) continue;
-
-          let obj = null;
-          try { obj = JSON.parse(line); } catch { obj = null; }
-          if (!obj) continue;
-
-          if (obj.error) {
-            setAiError(typeof obj.details === 'string' && obj.details ? `${obj.error}: ${obj.details}` : obj.error);
-            return;
-          }
-
-          if (obj.delta) {
-            sawAnyDelta = true;
-            aiWordQueueRef.current.push(...tokenize(obj.delta));
-            ensureFlushTimer();
-          }
-
-          if (obj.done) {
-            // Keep flushing remaining queue
-            ensureFlushTimer();
-            break;
-          }
-        }
-      }
-
-      if (!sawAnyDelta) {
-        setAiMessages((prev) => prev.map((m) => {
-          if (m && m.id === assistantId) return { ...m, content: '(empty response)' };
-          return m;
-        }));
-      }
-    } catch (e) {
-      setAiError('Network error while contacting AI');
-    } finally {
-      setAiSending(false);
-    }
+    // moved
   };
+  */
 
   return (
     <div className="main-card profile-card">
@@ -369,7 +268,7 @@ export default function Profile() {
 
 
 
-            <div className="ai-chat">
+            {/* <div className="ai-chat">
               <h3 className="ai-chat-title">AI chat (Ollama)</h3>
 
               <div className="ai-chat-log" role="log" aria-label="Chat messages">
@@ -406,7 +305,8 @@ export default function Profile() {
               </div>
 
               {aiError && <div className="message message--error">{aiError}</div>}
-            </div>
+            </div> */}
+
           </div>
         ) : (
           <p>{t('profile.loading')}</p>

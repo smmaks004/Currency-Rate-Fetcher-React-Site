@@ -322,6 +322,29 @@
     "errorUpdateUser": "Neizdevās atjaunināt lietotāju",
     "errorChangeRole": "Neizdevās mainīt lomu"
   },
+  "aiChat": {
+    "system": "Jūs esat noderīgs asistents.",
+    "ariaOpen": "Atvērt AI tērzēšanu",
+    "ariaClose": "Aizvērt AI tērzēšanu",
+    "header": "AI tērzēšana",
+    "chatMessagesAria": "Tērzēšanas ziņojumi",
+    "role": {
+      "you": "Jūs",
+      "assistant": "Asistents"
+    },
+    "placeholder": "Uzrakstiet ziņojumu…",
+    "send": "Sūtīt",
+    "sending": "Sūta…",
+    "clear": "Notīrīt",
+    "error": {
+      "unauthorized": "Neautorizēts: lūdzu, piesakieties vēlreiz.",
+      "requestFailed": "AI pieprasījums neizdevās",
+      "network": "Tīkla kļūda, sazinoties ar AI"
+    },
+    "response": {
+      "empty": "(tukša atbilde)"
+    }
+  },
   "routes": {
     "loading": "Ielādē..."
   }

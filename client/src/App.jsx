@@ -14,6 +14,7 @@ import './App.css';
 
 import { AuthProvider } from './components/AuthContext'; ///
 import { RatesProvider } from './contexts/RatesContext'; ///
+import AiChat from './components/AiChat';
 
 function App() {
   return (
@@ -21,6 +22,8 @@ function App() {
     <RatesProvider>
     <BrowserRouter>
       <div className="app-container">
+        <AiChat />
+        
         <Routes>
           <Route path="/auth/login" element={
             <PublicRoute redirectTo="/">

@@ -1,0 +1,146 @@
+/* Persistent toggleable panel */
+.persistent-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1300;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+/* Toggle button (triangle tab) */
+.pp-toggle {
+  width: 40px;
+  height: 40px;
+  background: rgba(40, 40, 40, 0.95);
+  border-radius: 8px;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+.pp-toggle:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+/* The triangle inside the toggle */
+.pp-triangle {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 12px solid #e6e6e6;
+  transform-origin: center;
+  transition: transform 0.18s ease;
+}
+
+.pp-toggle.open .pp-triangle {
+  transform: rotate(180deg);
+}
+
+/* Panel body */
+.pp-body {
+  width: 0;
+  max-width: 420px;
+  height: 240px;
+  background: rgba(24, 24, 26, 0.96);
+  color: #eaeaea;
+  border-radius: 10px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  transition: width 0.22s ease, opacity 0.18s ease;
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.persistent-panel.open .pp-body {
+  width: 360px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pp-header {
+  background: transparent;
+  padding: 12px 14px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: #f1f1f1;
+}
+
+.pp-content {
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.3;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.pp-id {
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+.pp-created {
+  font-size: 12px;
+  color: #bfbfbf;
+  margin-bottom: 10px;
+}
+
+.pp-text {
+  font-size: 13px;
+  color: #e6e6e6;
+}
+
+/* Closed state: keep only toggle visible (panel width 0) */
+.persistent-panel.closed .pp-body {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* AI chat specific styles */
+.ai-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ai-chat-log {
+  background: rgba(0,0,0,0.06);
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #e6e6e6;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ai-chat-line {
+  margin-bottom: 6px;
+}
+.ai-chat-line--user .ai-chat-role { color: #8ec7ff; }
+.ai-chat-line--assistant .ai-chat-role { color: #ffdca8; }
+.ai-chat-role { margin-right: 6px; font-weight:700; }
+.ai-chat-content { white-space: pre-wrap; }
+
+.ai-chat-controls { display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0; }
+.ai-chat-input { width: 100%; resize: vertical; border-radius:6px; padding:8px; border:1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); color: inherit; }
+.ai-chat-actions { display:flex; flex-direction:column; gap:6px; }
+.ai-chat-actions .btn-primary, .ai-chat-actions .btn-ghost { min-width: 80px; }
+
+.message--error { color: #ffb3b3; font-size: 13px; }
+

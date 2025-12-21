@@ -319,6 +319,29 @@
     "errorUpdateUser": "Failed to update user",
     "errorChangeRole": "Failed to change role"
   },
+  "aiChat": {
+    "system": "You are a helpful assistant.",
+    "ariaOpen": "Open AI chat",
+    "ariaClose": "Close AI chat",
+    "header": "AI Chat",
+    "chatMessagesAria": "Chat messages",
+    "role": {
+      "you": "You",
+      "assistant": "Assistant"
+    },
+    "placeholder": "Write a message…",
+    "send": "Send",
+    "sending": "Sending…",
+    "clear": "Clear",
+    "error": {
+      "unauthorized": "Unauthorized: please log in again.",
+      "requestFailed": "AI request failed",
+      "network": "Network error while contacting AI"
+    },
+    "response": {
+      "empty": "(empty response)"
+    }
+  },
   "routes": {
     "loading": "Loading..."
   }
