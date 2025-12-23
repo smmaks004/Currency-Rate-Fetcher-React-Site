@@ -13,6 +13,15 @@ const RESET_CODE_LENGTH = 6;
 const RESET_CODE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const RESET_CODE_ATTEMPTS = 5;
 
+// Secret for hashing reset codes. Set in environment for production.
+const RESET_CODE_SECRET = process.env.RESET_CODE_SECRET;
+
+// Fast hash
+function computeCodeHash(code) {
+  if (!code) return null;
+  return crypto.createHmac('sha256', RESET_CODE_SECRET).update(String(code)).digest('hex');
+}
+
 // Storage: email -> { code, expiresAt, attemptsLeft, verifiedToken }
 /** @type {Map<string, { code: string; expiresAt: number; attemptsLeft: number; verifiedToken?: string }>} */
 const passwordResetStore = new Map();
@@ -65,18 +74,18 @@ router.post('/request', async (req, res) => {
 
       // If user exists and is active (Not deleted)
       const code = generateRandomString(RESET_CODE_LENGTH);
+      const codeHash = computeCodeHash(code);
       const now = Date.now();
 
+      // Store only the hash of the code to avoid keeping plaintext in memory
       passwordResetStore.set(normalizedEmail, {
-        code,
+        codeHash,
         expiresAt: now + RESET_CODE_TTL_MS,
         attemptsLeft: RESET_CODE_ATTEMPTS,
       });
 
-      console.log(`[password-reset] Code generated for ${normalizedEmail}: ${code}`); // DEBUG: Remove in production
-
       await sendPasswordResetCodeEmail({
-        to: email, 
+        to: email,
         code,
         expiresInMinutes: Math.floor(RESET_CODE_TTL_MS / 60000),
       });
@@ -85,7 +94,8 @@ router.post('/request', async (req, res) => {
       // User does NOT exist in DB
       // Simulate delay to prevent timing attacks
       await new Promise(resolve => setTimeout(resolve, 200));
-      console.log(`[password-reset] Request for non-existing email: ${normalizedEmail}`);
+
+      // console.log(`[password-reset] Request for non-existing email: ${normalizedEmail}`);
     }
 
     // Always return success if not explicitly blocked (deleted), 
@@ -125,13 +135,15 @@ router.post('/verify', async (req, res) => {
     return res.status(429).json({ ok: false, error: 'Too many attempts' });
   }
 
-  if (entry.code !== normalizedCode) {
+  // Compare hash of provided code with stored hash
+  const providedHash = computeCodeHash(normalizedCode);
+  if (entry.codeHash !== providedHash) {
     entry.attemptsLeft -= 1;
     passwordResetStore.set(normalizedEmail, entry);
-    return res.status(400).json({ 
-      ok: false, 
-      error: 'Incorrect code', 
-      attemptsLeft: entry.attemptsLeft 
+    return res.status(400).json({
+      ok: false,
+      error: 'Incorrect code',
+      attemptsLeft: entry.attemptsLeft,
     });
   }
 
@@ -139,7 +151,7 @@ router.post('/verify', async (req, res) => {
   const resetToken = crypto.randomBytes(32).toString('hex');
   
   // Invalidate code, store token
-  entry.code = null; 
+  entry.codeHash = null;
   entry.verifiedToken = resetToken;
   passwordResetStore.set(normalizedEmail, entry);
 
