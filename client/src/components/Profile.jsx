@@ -64,7 +64,13 @@ export default function Profile() {
     const errs = {};
     if (!String(firstName || '').trim()) errs.firstName = t('profile.firstNameRequired');
     if (!String(lastName || '').trim()) errs.lastName = t('profile.lastNameRequired');
-    if (!String(email || '').trim()) errs.email = t('profile.emailRequired');
+    if (!String(email || '').trim()) {
+      errs.email = t('profile.emailRequired');
+    } else {
+      const emailTrim = String(email || '').trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailTrim)) errs.email = t('profile.invalidEmail');
+    }
 
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
@@ -190,7 +196,6 @@ export default function Profile() {
                     </label>
                     <div className="pw-actions">
                       <button className="btn-primary" onClick={onChangePassword} disabled={pwSaving}>{pwSaving ? t('profile.saving') : t('profile.savePassword')}</button>
-                      {pwMessage.text && <div className={`pw-message ${pwMessage.kind === 'error' ? 'message--error' : 'message--success'}`}>{pwMessage.text}</div>}
                     </div>
                   </div>
                 )}
@@ -260,6 +265,8 @@ export default function Profile() {
               </>
             )}
 
+            
+            {pwMessage.text && <div className={`pw-message ${pwMessage.kind === 'error' ? 'message--error' : 'message--success'}`}>{pwMessage.text}</div>}
 
 
 

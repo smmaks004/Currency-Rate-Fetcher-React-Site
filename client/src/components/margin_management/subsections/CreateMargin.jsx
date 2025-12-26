@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import './CreateMargin.css';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import enGB from 'date-fns/locale/en-GB';
+// import 'react-datepicker/dist/react-datepicker.css';
+registerLocale('en-GB', enGB);
 
 export default function CreateMargin({ isOpen, onClose, onSuccess }) {
   // Form state
@@ -127,28 +131,33 @@ export default function CreateMargin({ isOpen, onClose, onSuccess }) {
         </div>
         
         <div className="form-group">
-            <label>{t('createMargin.startDateLabel')}</label>
-            <input 
-                type="date" 
-                max={todayDate}
-                value={startDate}
-                onChange={(e) => {
-                    setStartDate(e.target.value);
-                    setConflictWarning(null); 
-                    setCreateError('');
-                }}
-                disabled={!!conflictWarning || loading}
-            />
+          <label>{t('createMargin.startDateLabel')}</label>
+          <DatePicker
+            selected={startDate ? new Date(startDate) : null}
+            onChange={(d) => {
+              setStartDate(d ? d.toISOString().slice(0,10) : '');
+              setConflictWarning(null);
+              setCreateError('');
+            }}
+            dateFormat="yyyy-MM-dd"
+            locale="en-GB"
+            maxDate={todayDate ? new Date(todayDate) : undefined}
+            className="date-picker-input"
+            disabled={!!conflictWarning || loading}
+          />
         </div>
 
         <div className="form-group">
-            <label>{t('createMargin.endDateLabel')}</label>
-            <input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                disabled={!!conflictWarning || loading}
-            />
+          <label>{t('createMargin.endDateLabel')}</label>
+          <DatePicker
+            selected={endDate ? new Date(endDate) : null}
+            onChange={(d) => setEndDate(d ? d.toISOString().slice(0,10) : '')}
+            dateFormat="yyyy-MM-dd"
+            locale="en-GB"
+            maxDate={todayDate ? new Date(todayDate) : undefined}
+            className="date-picker-input"
+            disabled={!!conflictWarning || loading}
+          />
         </div>
 
         <div className="modal-actions">

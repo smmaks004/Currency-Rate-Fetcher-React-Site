@@ -7,9 +7,13 @@ import CreateCurrency from './subsections/CreateCurrency';
 import { useAuth } from '../AuthContext';
 
 export default function CurrencyManagement() {
+  // Which tab is visible: table of rates, create currency form, or export
   const [activeTab, setActiveTab] = useState('table'); // 'table' | 'create' | 'export'
+  
+  // Current user + admin check
   const { user } = useAuth();
   const isAdmin = !!(user && ((user.Role).toString().toLowerCase() === 'admin'));
+  
   const { t } = useTranslation();
 
   return (

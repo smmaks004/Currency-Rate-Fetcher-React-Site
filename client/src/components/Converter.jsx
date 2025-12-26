@@ -70,6 +70,9 @@ export default function ConverterPage() {
 
     const [payLoading, setPayLoading] = useState(false); ////
 
+    const currentFromAmount = activeInput === 'from' ? amount : Number(result?.valFrom ?? 0);
+    const minAmountError = Number.isFinite(currentFromAmount) ? currentFromAmount < 10 : false;
+
     const { getRateForDate } = useRates();
 
     // --- Load currencies ---
@@ -194,6 +197,11 @@ export default function ConverterPage() {
 
         if (!Number.isFinite(fromVal) || fromVal <= 0 || !Number.isFinite(toVal) || toVal <= 0 || !Number.isFinite(usedRate) || usedRate <= 0) {
             setError(t('converter.errorCalc'));
+            return;
+        }
+
+        // Minimum amount check — silently prevent starting checkout
+        if (fromVal < 10) {
             return;
         }
 
@@ -374,10 +382,10 @@ export default function ConverterPage() {
                         type="button"
                         className="conv-btn conv-pay-btn"
                         onClick={startStripeCheckout}
-                        disabled={loading || payLoading || !!error || fromCode === '—' || toCode === '—'}
-                        title={t('converter.paySandbox')}
+                        disabled={loading || payLoading || !!error || fromCode === '—' || toCode === '—' || minAmountError}
+                        title={minAmountError ? t('converter.payMinHelp', { min: 10, code: fromCode }) : t('converter.payStripe')}
                     >
-                        {payLoading ? t('converter.payRedirecting') : t('converter.paySandbox')}
+                        {payLoading ? t('converter.payRedirecting') : t('converter.payStripe')}
                     </button>
                 </div>
 

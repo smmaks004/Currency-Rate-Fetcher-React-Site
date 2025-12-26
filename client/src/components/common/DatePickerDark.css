@@ -1,0 +1,143 @@
+/* Dark theme overrides for react-datepicker and date-picker inputs */
+/* Place this file in client/src/components/common and import it once (e.g. in main.jsx) */
+
+/* Base popper / calendar */
+.react-datepicker, .react-datepicker__tab-loop, .react-datepicker-popper {
+  background: #0b0f16 !important; /* deep background */
+  color: #e6eef8 !important; /* light text */
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.75) !important;
+  border-radius: 6px !important;
+  font-family: inherit !important;
+}
+
+/* Triangle pointer */
+.react-datepicker__triangle, .react-datepicker__triangle::before {
+  border-bottom-color: rgba(11,15,24,0.98) !important;
+}
+
+/* Header (month and navigation) */
+.react-datepicker__header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+  padding-top: 10px !important;
+}
+.react-datepicker__current-month,
+.react-datepicker__day-name {
+  color: #b9c7d7 !important;
+}
+
+/* Navigation arrows */
+.react-datepicker__navigation--previous,
+.react-datepicker__navigation--next {
+  top: 10px !important;
+  line-height: 1 !important;
+  border: none !important;
+  background: rgba(255,255,255,0.03) !important;
+  color: #cfe6ff !important;
+}
+
+/* Days grid */
+.react-datepicker__day {
+  color: #e6eef8 !important;
+  background: transparent !important;
+  border-radius: 4px !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  margin: 2px !important;
+}
+.react-datepicker__day:hover {
+  background: rgba(255,255,255,0.04) !important;
+  color: #ffffff !important;
+}
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: #1f6feb !important; /* accent */
+  color: #fff !important;
+  box-shadow: 0 2px 6px rgba(31,111,235,0.35) !important;
+}
+.react-datepicker__day--today {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06) !important;
+}
+.react-datepicker__day--disabled {
+  color: rgba(230,238,248,0.28) !important;
+  opacity: 0.6 !important;
+}
+
+
+/* Weekend days: show weekday numbers in red (but keep selected state readable) */
+.react-datepicker__day--weekend {
+  color: #ff6b6b !important;
+}
+.react-datepicker__day--weekend.react-datepicker__day--selected,
+.react-datepicker__day--weekend.react-datepicker__day--keyboard-selected {
+  color: #fff !important;
+}
+.react-datepicker__day--weekend.react-datepicker__day--disabled {
+  color: rgba(255,107,107,0.35) !important;
+}
+
+/* Time list / time input */
+.react-datepicker__time-list {
+  background: transparent !important;
+  color: #e6eef8 !important;
+}
+.react-datepicker__time-list-item:hover {
+  background: rgba(255,255,255,0.03) !important;
+  color: #fff !important;
+}
+
+/* Input styling for inputs using class "date-picker-input" */
+.date-picker-input {
+  background: rgba(255,255,255,0.02);
+  color: #e6eef8;
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 6px 8px;
+  border-radius: 4px;
+  outline: none;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
+}
+.date-picker-input:focus {
+  border-color: rgba(31,111,235,0.9);
+  box-shadow: 0 0 0 4px rgba(31,111,235,0.12);
+}
+
+/* When react-datepicker is rendered into body via portal, ensure it inherits dark background */
+body .react-datepicker {
+  background: #0b0f16 !important;
+}
+
+/* Small screens / compact adjustments */
+.react-datepicker__month-container {
+  padding: 8px !important;
+}
+
+/* Error / unavailable states */
+.react-datepicker__input-container .is-invalid,
+.date-picker-input.is-invalid {
+  border-color: rgba(255,80,80,0.9) !important;
+}
+
+/* Utility: make datepicker popper sit above modal overlays if needed */
+.react-datepicker-popper {
+  z-index: 99999 !important;
+}
+
+/* Ensure inline time inputs and selected elements remain readable */
+.react-datepicker__day--selected:hover,
+.react-datepicker__day--keyboard-selected:hover {
+  filter: brightness(1.05);
+}
+
+/* Accessibility: visible focus outline for keyboard users */
+.react-datepicker__day:focus {
+  outline: 2px solid rgba(31,111,235,0.28);
+  outline-offset: 2px;
+}
+
+/* small helper: lighten headers for contrast */
+.react-datepicker__navigation--next:hover,
+.react-datepicker__navigation--previous:hover {
+  background: rgba(255,255,255,0.06) !important;
+}

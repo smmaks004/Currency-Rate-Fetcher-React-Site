@@ -15,13 +15,15 @@ export default function Login() {
   const { login } = useAuth();
   const { t } = useTranslation();
 
-  const [showForgot, setShowForgot] = useState(false); ///
+  // Toggle to show forgot-password UI instead of login form
+  const [showForgot, setShowForgot] = useState(false);
 
-
+  // Handle form submit: basic validation, POST to /api/auth/login
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
+    // Simple client-side checks
     if (!email) return setError(t('login.errorEmailRequired'));
     if (!password) return setError(t('login.errorPasswordRequired'));
 
@@ -61,13 +63,9 @@ export default function Login() {
 
   return (
     <div className="login-container">
+      {/* Show forgot-password flow when toggled, otherwise show login form */}
       {showForgot ? (
-        <ForgotPassword
-          onBack={() => setShowForgot(false)}
-          onSubmitEmail={() => {
-            // Placeholder: real sending will be added later
-          }}
-        />
+        <ForgotPassword onBack={() => setShowForgot(false)} />
       ) : (
         <form className="login-box" onSubmit={handleSubmit}>
           <div className="login-top">

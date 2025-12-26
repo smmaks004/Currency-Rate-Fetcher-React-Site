@@ -295,6 +295,12 @@ router.put('/update/:id', protect, async (req, res) => {
   const { marginValue, startDate, endDate } = req.body;
   const userId = req.user?.id;
 
+  // Only admins may update margins
+  const role = req.user && req.user.role;
+  if (!role || String(role).toLowerCase() !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: admin only' });
+  }
+
   if (marginValue == null || isNaN(marginValue)) {
     return res.status(400).json({ error: 'Invalid margin value' });
   }
@@ -333,38 +339,39 @@ router.put('/update/:id', protect, async (req, res) => {
       return res.status(400).json({ error: `A margin starting on ${startDate} already exists.` });
     }
 
-    // Load all other margins ordered by StartDate ASC
-    const [existingMargins] = await connection.query(`
-      SELECT Id, CAST(StartDate AS CHAR) as StartDate, CAST(EndDate AS CHAR) as EndDate 
-      FROM Margins 
-      WHERE Id != ?
-      ORDER BY StartDate ASC
-    `, [marginId]);
-
     const newStart = startDate;
     const newEnd = endDate || null;
 
-    let previousMarginToClose = null;
-    let succeedingMarginToModify = null;
+    // Find immediate previous margin (closest StartDate < newStart)
+    const [prevRows] = await connection.query(
+      `SELECT Id, CAST(StartDate AS CHAR) as StartDate, CAST(EndDate AS CHAR) as EndDate
+       FROM Margins WHERE Id != ? AND StartDate < ? ORDER BY StartDate DESC LIMIT 1`,
+      [marginId, newStart]
+    );
+    let previousMarginToClose = (prevRows && prevRows.length) ? prevRows[0] : null;
+
+    // If previous exists but ends strictly before newStart, ignore it
+    if (previousMarginToClose) {
+      const pEnd = previousMarginToClose.EndDate || '9999-12-31';
+      if (pEnd !== '9999-12-31' && pEnd < newStart) previousMarginToClose = null;
+    }
+
+    // Find immediate succeeding margin (first StartDate > newStart)
+    const [nextRows] = await connection.query(
+      `SELECT Id, CAST(StartDate AS CHAR) as StartDate, CAST(EndDate AS CHAR) as EndDate
+       FROM Margins WHERE Id != ? AND StartDate > ? ORDER BY StartDate ASC LIMIT 1`,
+      [marginId, newStart]
+    );
+    const succeedingMarginToModify = (nextRows && nextRows.length) ? nextRows[0] : null;
+
+    // If new margin is open-ended, collect all margins that start after newStart for deletion
     const marginsToDelete = [];
-
-    for (const m of existingMargins) {
-      const mStart = m.StartDate;
-      const mEnd = m.EndDate || '9999-12-31';
-
-      if (mStart < newStart) {
-        if (mEnd === '9999-12-31' || mEnd >= newStart) {
-          previousMarginToClose = m;
-        }
-      }
-
-      if (mStart > newStart && !succeedingMarginToModify) {
-        succeedingMarginToModify = m;
-      }
-
-      if (!newEnd && mStart > newStart) {
-        marginsToDelete.push(m.Id);
-      }
+    if (!newEnd) {
+      const [delRows] = await connection.query(
+        `SELECT Id FROM Margins WHERE Id != ? AND StartDate > ?`,
+        [marginId, newStart]
+      );
+      for (const r of delRows) marginsToDelete.push(r.Id);
     }
 
     // Close previous margin (cut to yesterday)

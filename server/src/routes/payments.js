@@ -61,6 +61,11 @@ router.post('/create-checkout-session', async (req, res) => {
     if (amtFrom == null || amtFrom <= 0) {
       return res.status(400).json({ error: 'Invalid amountFrom' });
     }
+
+    if (amtFrom < 10) {
+      return res.status(400).json({ error: `Minimum amount is 10` });
+    }
+
     if (amtTo == null || amtTo <= 0) {
       return res.status(400).json({ error: 'Invalid amountTo' });
     }

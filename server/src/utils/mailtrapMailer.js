@@ -1,55 +1,45 @@
-const Nodemailer = require('nodemailer');
-const { MailtrapTransport } = require('mailtrap');
+const nodemailer = require('nodemailer');
 
-// function getEnv(name, fallback) {
-//   const v = process.env[name];
-//   if (v === undefined || v === null || String(v).trim() === '') return fallback;
-//   return String(v);
-// }
-
+/**
+ * Creates a Nodemailer transport for Mailtrap sandbox SMTP
+ */
 function createMailerTransport() {
-//   const token = getEnv('MAILTRAP_TOKEN');
-  const token = process.env.MAILTRAP_TOKEN;
-  if (!token) {
-  throw new Error('MAILTRAP_TOKEN is not set');
-  }
-
-  return Nodemailer.createTransport(
-  MailtrapTransport({
-      token,
-  })
-  );
+  return nodemailer.createTransport({
+    host: process.env.MAILTRAP_HOST || 'sandbox.smtp.mailtrap.io',
+    port: Number(process.env.MAILTRAP_PORT) || 2525,
+    auth: {
+      user: process.env.MAILTRAP_USER,
+      pass: process.env.MAILTRAP_PASS,
+    },
+  });
 }
 
+/**
+ * Send email with a password reset code
+ * @param {Object} params
+ * @param {string} params.to - Recipient email
+ * @param {string} params.code - Reset code
+ * @param {number} params.expiresInMinutes - Code lifetime in minutes
+ */
 async function sendPasswordResetCodeEmail({ to, code, expiresInMinutes }) {
-//   const fromAddress = getEnv('MAILTRAP_FROM_ADDRESS', 'hello@demomailtrap.co');
-//   const fromName = getEnv('MAILTRAP_FROM_NAME', 'Currency Rate Fetcher');
-//   const category = getEnv('MAILTRAP_CATEGORY', 'Password Reset');
-  const fromAddress = process.env.MAILTRAP_FROM_ADDRESS;
-  const fromName = process.env.MAILTRAP_FROM_NAME;
-  const category = process.env.MAILTRAP_CATEGORY;
-
+  const fromAddress = process.env.MAILTRAP_FROM_ADDRESS || 'hello@local.test';
+  const fromName = process.env.MAILTRAP_FROM_NAME || 'Currency Rate Fetcher';
 
   const transport = createMailerTransport();
 
-  
-  // const destination = process.env.UNIVERSAL_EMAIL;////
-
   const text = [
-  'Your password reset code is:',
-  String(code),
-  '',
-  `This code expires in ${expiresInMinutes} minutes.`,
-  'If you did not request this, you can ignore this email.',
+    'Your password reset code is:',
+    String(code),
+    '',
+    `This code expires in ${expiresInMinutes} minutes.`,
+    'If you did not request this, you can ignore this email.',
   ].join('\n');
 
   return transport.sendMail({
-  from: { address: fromAddress, name: fromName },
-  // to: [String(to)],
-  to: process.env.UNIVERSAL_EMAIL,
-  subject: 'Password reset code',
-  text,
-  category,
+    from: `"${fromName}" <${fromAddress}>`,
+    to: process.env.UNIVERSAL_EMAIL || to,
+    subject: 'Password reset code',
+    text,
   });
 }
 

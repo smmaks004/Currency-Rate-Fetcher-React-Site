@@ -4,80 +4,63 @@ import './CreateUser.css';
 
 export default function CreateUser({ isOpen, onClose, onSuccess }) {
 	const { t } = useTranslation();
+
 	// Form state
 	const [firstName, setFirstName] = useState('');
 	const [lastName, setLastName] = useState('');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [role, setRole] = useState('user');
-	const [loading, setLoading] = useState(false);
 
-	// UI state
-	const [createError, setCreateError] = useState('');
+	const [loading, setLoading] = useState(false); // Loading indicator while request is in progress
 
+	// UI state: any error message from validation or server
+	const [error, setError] = useState('');
+
+	// Reset form inputs and error state to defaults
 	const resetForm = () => {
 		setFirstName('');
 		setLastName('');
 		setEmail('');
 		setPassword('');
-		setRole('User');
-		setCreateError('');
+		setRole('user');
+		setError('');
 	};
 
+	// Close modal and clear inputs
 	const handleClose = () => {
 		resetForm();
 		onClose();
 	};
 
-	const validateEmail = (email) => {
-		const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		return re.test(email);
-	};
+	// Basic email format check
+	const validateEmail = (email) => { const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; return re.test(email); };
 
 	const handleSubmit = async () => {
-		setCreateError('');
+		// Clear previous error
+		setError('');
 
 		// Frontend Validation
-		if (!firstName.trim()) {
-			setCreateError(t('createUser.firstNameRequired'));
-			return;
-		}
+		if (!firstName.trim()) { setError(t('createUser.firstNameRequired')); return; } // FirstName is empty
+		if (!lastName.trim()) { setError(t('createUser.lastNameRequired')); return; } // LastName is empty
 
-		if (!lastName.trim()) {
-			setCreateError(t('createUser.lastNameRequired'));
-			return;
-		}
+		
+		if (!email.trim()) { setError(t('createUser.emailRequired')); return; } // Email is empty
+		if (!validateEmail(email)) { setError(t('createUser.invalidEmail')); return; } // Invalid email format
 
-		if (!email.trim()) {
-			setCreateError(t('createUser.emailRequired'));
-			return;
-		}
 
-		if (!validateEmail(email)) {
-			setCreateError(t('createUser.invalidEmail'));
-			return;
-		}
-
-		if (!password) {
-			setCreateError(t('createUser.passwordRequired'));
-			return;
-		}
-
-		if (password.length < 6) {
-			setCreateError(t('createUser.passwordLength'));
-			return;
-		}
+		if (!password) { setError(t('createUser.passwordRequired')); return; } // Password is empty
+		if (password.length < 6) { setError(t('createUser.passwordLength')); return; } // Password too short
 
 		// Require at least one digit or special character
 		const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(password);
-		if (!hasDigitOrSymbol) {
-			setCreateError(t('createUser.passwordRequirements'));
-			return;
-		}
+		if (!hasDigitOrSymbol) { setError(t('createUser.passwordRequirements')); return; } // Password lacks digit/symbol
 
-		setLoading(true);
+		
+		setLoading(true);// Indicate that we are sending request
 
 		try {
+			// Prepare payload for server
 			const payload = {
 				firstName: firstName.trim(),
 				lastName: lastName.trim(),
@@ -103,11 +86,12 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 				onClose();
 			} else {
 				// Error
-				setCreateError(data.error || 'Failed to create user');
+				setError(data.error || 'Failed to create user');
 				setLoading(false);
 			}
 		} catch (err) {
-			setCreateError('Network error');
+			// Network or unexpected error
+			setError('Network error');
 			setLoading(false);
 		}
 	};
@@ -119,7 +103,7 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 			<div className="modal-content">
 				<div className="modal-title">{t('createUser.title')}</div>
 
-				{createError && <div className="error-msg">{createError}</div>}
+				{error && <div className="error-msg">{error}</div>}
 
 				<div className="form-group">
 					<label>{t('createUser.firstNameLabel')}</label>

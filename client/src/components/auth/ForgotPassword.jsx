@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import './ForgotPassword.css';
 
+// Default recovery options - currently only email supported
 export const defaultRecoveryOptions = [
   { id: 'email' },
 ];
@@ -11,38 +12,43 @@ export default function ForgotPassword({
   recoveryOptions = defaultRecoveryOptions,
   onSubmitEmail,
 }) {
-  const [step, setStep] = useState('choose'); // 'choose' | 'email' | 'code' | 'reset'
+  
+  // step flow: 'choose' -> 'email' -> 'code' -> 'reset'
+  const [step, setStep] = useState('choose');
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   
-  // Code input state
+  // Code input state: six-character code broken into inputs
   const [codeChars, setCodeChars] = useState(() => Array.from({ length: 6 }, () => ''));
   const codeInputsRef = useRef([]);
   const prevFullRef = useRef(false);
 
-  // Reset password state
+  // Reset password state: token and password fields
   const [resetToken, setResetToken] = useState(null); // Security token from server
   const [resetPw, setResetPw] = useState('');
   const [resetPwRepeat, setResetPwRepeat] = useState('');
   
-  // Status feedback
+  // Status feedback for user: message and kind (info/error/success)
   const [statusText, setStatusText] = useState('');
-  const [statusKind, setStatusKind] = useState('info'); // 'info' | 'error' | 'success'
+  const [statusKind, setStatusKind] = useState('info');
 
   const { t } = useTranslation();
   const options = useMemo(() => recoveryOptions ?? defaultRecoveryOptions, [recoveryOptions]);
 
+  // Navigate one step back/cleanup state depending on current step
   const handleBack = () => {
     setStatusText('');
     setStatusKind('info');
     
     if (step === 'reset') {
+      // Cancel reset flow -> go back to choosing method
       setResetPw('');
       setResetPwRepeat('');
       setStep('choose');
       return;
     }
     if (step === 'code') {
+      // Clear code inputs and go back to email entry
       setCodeChars(Array.from({ length: 6 }, () => ''));
       setStep('email');
       return;
@@ -54,6 +60,7 @@ export default function ForgotPassword({
     onBack?.();
   };
 
+  // Handle user selecting a recovery option (only email supported)
   const handleOptionClick = (optionId) => {
     if (optionId === 'email') {
       setStep('email');
@@ -99,7 +106,7 @@ export default function ForgotPassword({
         return;
       }
 
-      // Success
+      // Success: notify user and transition to code entry
       setStatusKind('info');
       setStatusText(t('forgot.codeSent'));
       onSubmitEmail?.(trimmedEmail);
@@ -128,6 +135,7 @@ export default function ForgotPassword({
     });
   };
 
+  // Handle pasted/typed values into a code input: sanitize and auto-advance
   const handleCodeChange = (index, rawValue) => {
     const value = String(rawValue || '').replace(/\s+/g, '').toUpperCase();
     const cleaned = value.replace(/[^A-Z0-9]/gi, '');
@@ -150,13 +158,14 @@ export default function ForgotPassword({
     codeInputsRef.current?.[nextIndex]?.focus?.();
   };
 
+  // Backspace behavior: jump to previous input when empty
   const handleCodeKeyDown = (index, e) => {
     if (e.key === 'Backspace' && !codeChars[index] && index > 0) {
       codeInputsRef.current?.[index - 1]?.focus?.();
     }
   };
 
-  // 2. Verify Code
+  // 2. Verify Code: send entered code to server and store reset token on success
   const verifyCode = async (code) => {
     setStatusText(t('forgot.verifying'));
     setStatusKind('info');
@@ -192,7 +201,7 @@ export default function ForgotPassword({
     }
   };
 
-  // Auto-submit code when filled (trigger once on transition -> full)
+  // Auto-submit code when all inputs are filled
   useEffect(() => {
     if (step !== 'code') return;
     const isFull = codeChars.every(c => Boolean(c));
@@ -207,11 +216,10 @@ export default function ForgotPassword({
     // Reset the flag when it's not full so next full state triggers again
     if (!isFull) prevFullRef.current = false;
 
-    
     // eslint-disable-next-line
   }, [codeChars, step, sending]);
 
-  // 3. Set New Password
+  // 3. Set New Password: validate locally and POST to server with reset token
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (sending) return;
@@ -264,6 +272,7 @@ export default function ForgotPassword({
         return;
       }
 
+      // Success: inform user then reset internal state and go back
       setStatusText(t('forgot.passwordChangedSuccess'));
       setStatusKind('success');
       

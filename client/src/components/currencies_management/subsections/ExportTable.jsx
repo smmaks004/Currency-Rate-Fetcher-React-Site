@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// Download a Blob as a file to the user's machine
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -16,6 +17,7 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+// Escape a value for inclusion in a CSV cell
 function escapeCsvCell(v) {
   if (v == null) return '';
   const s = String(v);
@@ -25,6 +27,7 @@ function escapeCsvCell(v) {
   return s;
 }
 
+// Read currently visible table rows from DOM when propRows not provided
 function readVisibleTable() {
   const table = document.querySelector('.curr-table');
   if (!table) return { headers: [], rows: [] };

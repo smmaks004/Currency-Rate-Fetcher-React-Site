@@ -1,6 +1,6 @@
 {
   "header": {
-    "brand": "Exchange Explorer",
+    "brand": "Rate Explorer",
     "currencyManagement": "Currency management",
     "marginManagement": "Margin management",
     "adminManagement": "Admin Management",
@@ -52,6 +52,7 @@
     ,"firstNameRequired": "First name is required"
     ,"lastNameRequired": "Last name is required"
     ,"emailRequired": "Email is required"
+    ,"invalidEmail": "Please enter a valid email address"
     ,"passwordConfirmRequired": "Please confirm password"
     ,"passwordTooShort": "Password must be at least 6 characters long"
     ,"passwordRequiresDigitSymbol": "Password must include at least one digit or special character"
@@ -76,7 +77,8 @@
     "result": "Selling {{fromVal}} {{fromCode}} gets you {{toVal}} {{toCode}}",
     "rateApplied": "Rate applied: 1 {{fromCode}} = {{rate}} {{toCode}}",
     "ratesTaken": "Rates taken from: {{date}}",
-    "paySandbox": "Pay (sandbox)",
+    "payStripe": "Exchange",
+    "payMinHelp": "Minimum amount is {{min}} {{code}}",
     "payRedirecting": "Redirecting...",
     "payInitFailed": "Failed to start payment",
     "payConfirm": "Proceed to Stripe sandbox payment?\n\nPay {{fromVal}} {{fromCode}} to get {{toVal}} {{toCode}}"
@@ -88,7 +90,7 @@
     "modeSell": "Sell",
     "modeMix": "Mix",
     "modeOrigin": "Origin",
-    "title": "Exchange Rate Dynamics",
+    "title": "Rate Dynamics",
     "subtitle": "Daily data · hover for details",
     "loading": "Loading...",
     "latestBuy": "Buy",
@@ -117,7 +119,7 @@
     "sellRate": "Sell rate",
     "buyRate": "Buy rate",
     "date": "Date",
-    "noData": "No data available.",
+    "noData": "No data available",
     "showing": "Showing {{from}} - {{to}} of {{total}}",
     "first": "First", 
     "prev": "Prev",
@@ -158,7 +160,7 @@
     "prev": "Prev",
     "next": "Next",
     "last": "Last",
-    "page": "Page {{page}} of {{total}}",
+    "page": "Page {{page}} / {{total}}",
     "createNew": "Create New +",
     "save": "Save",
     "saving": "Saving...",
@@ -308,13 +310,12 @@
     "changeRoleTitle": "Change role?",
     "changeRoleFor": "Change role for {{user}}. Are you sure?",
     "changeRoleLabel": "Select new role",
-    "paginationShowing": "Showing {{from}} - {{to}} of {{total}}",
-    "paginationFirst": "« First",
-    "paginationPrev": "‹ Prev",
-    "paginationPage": "Page {{page}} / {{total}}",
-    "paginationNext": "Next ›",
-    "paginationLast": "Last »",
-    "paginationPageLabel": "Page {{page}} / {{total}}",
+    "showing": "Showing {{from}} - {{to}} of {{total}}",
+    "first": "First",
+    "prev": "Prev",
+    "page": "Page {{page}} / {{total}}",
+    "next": "Next",
+    "last": "Last",
     "errorLoadUsers": "Failed to load users",
     "errorUpdateUser": "Failed to update user",
     "errorChangeRole": "Failed to change role"

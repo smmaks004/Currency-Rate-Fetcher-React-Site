@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function CreateCurrency() {
+  // Form inputs and feedback state
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,8 @@ export default function CreateCurrency() {
   const onCreate = async () => {
     setError('');
     setSuccess(false);
+    
+    // Basic validation: currency code must be exactly 3 letters
     if (code.length !== 3) {
       setError(t('createCurrency.errorCode'));
       return;
@@ -47,7 +50,7 @@ export default function CreateCurrency() {
         return;
       }
 
-      
+      // Success - clear inputs and show success flag
       setSuccess(true); // Success
       setName('');
       setCode('');

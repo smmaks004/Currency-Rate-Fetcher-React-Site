@@ -8,22 +8,16 @@ const { sendPasswordResetCodeEmail } = require('../utils/mailtrapMailer');
 // -----------------------------
 // Password reset (in-memory storage)
 // -----------------------------
-
 const RESET_CODE_LENGTH = 6;
 const RESET_CODE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const RESET_CODE_ATTEMPTS = 5;
-
-// Secret for hashing reset codes. Set in environment for production.
 const RESET_CODE_SECRET = process.env.RESET_CODE_SECRET;
 
-// Fast hash
 function computeCodeHash(code) {
   if (!code) return null;
   return crypto.createHmac('sha256', RESET_CODE_SECRET).update(String(code)).digest('hex');
 }
 
-// Storage: email -> { code, expiresAt, attemptsLeft, verifiedToken }
-/** @type {Map<string, { code: string; expiresAt: number; attemptsLeft: number; verifiedToken?: string }>} */
 const passwordResetStore = new Map();
 
 function normalizeEmail(email) {
@@ -44,40 +38,37 @@ function isExpired(entry) {
   return !entry || Date.now() > entry.expiresAt;
 }
 
+// -----------------------------
+// Routes
+// -----------------------------
+
 // POST /api/password-reset/request
-// Checks email. If user exists but is deleted -> Error. If active -> Sends code.
 router.post('/request', async (req, res) => {
   const { email } = req.body || {};
   const normalizedEmail = normalizeEmail(email);
-  
+
   if (!normalizedEmail) {
     return res.status(400).json({ ok: false, error: 'Email required' });
   }
 
   try {
-    // 1. Fetch user ID and IsDeleted status.
-    // We use "IsDeleted+0" to ensure BIT fields are returned as integer (0 or 1).
     const [rows] = await pool.query(
       'SELECT Id, IsDeleted+0 AS IsDeletedVal FROM Users WHERE LOWER(Email) = ? LIMIT 1',
       [normalizedEmail]
     );
-    
+
     const user = rows && rows[0];
 
-    // 2. Logic based on user status
     if (user) {
-      // If user exists but is marked as deleted
       if (user.IsDeletedVal === 1) {
         console.log(`[password-reset] Blocked request for deleted account: ${normalizedEmail}`);
         return res.status(403).json({ ok: false, error: 'Account is deleted' });
       }
 
-      // If user exists and is active (Not deleted)
       const code = generateRandomString(RESET_CODE_LENGTH);
       const codeHash = computeCodeHash(code);
       const now = Date.now();
 
-      // Store only the hash of the code to avoid keeping plaintext in memory
       passwordResetStore.set(normalizedEmail, {
         codeHash,
         expiresAt: now + RESET_CODE_TTL_MS,
@@ -91,19 +82,14 @@ router.post('/request', async (req, res) => {
       });
 
     } else {
-      // User does NOT exist in DB
-      // Simulate delay to prevent timing attacks
+      // Simulate delay for non-existent emails
       await new Promise(resolve => setTimeout(resolve, 200));
-
-      // console.log(`[password-reset] Request for non-existing email: ${normalizedEmail}`);
     }
 
-    // Always return success if not explicitly blocked (deleted), 
-    // to prevent user enumeration for non-existing emails.
-    return res.json({ 
-      ok: true, 
+    return res.json({
+      ok: true,
       message: 'If this email exists and is active, a code has been sent.',
-      expiresInSeconds: Math.floor(RESET_CODE_TTL_MS / 1000) 
+      expiresInSeconds: Math.floor(RESET_CODE_TTL_MS / 1000)
     });
 
   } catch (e) {
@@ -113,7 +99,6 @@ router.post('/request', async (req, res) => {
 });
 
 // POST /api/password-reset/verify
-// Verifies the code. If OK -> returns a temporary resetToken.
 router.post('/verify', async (req, res) => {
   const { email, code } = req.body || {};
   const normalizedEmail = normalizeEmail(email);
@@ -135,7 +120,6 @@ router.post('/verify', async (req, res) => {
     return res.status(429).json({ ok: false, error: 'Too many attempts' });
   }
 
-  // Compare hash of provided code with stored hash
   const providedHash = computeCodeHash(normalizedCode);
   if (entry.codeHash !== providedHash) {
     entry.attemptsLeft -= 1;
@@ -147,10 +131,7 @@ router.post('/verify', async (req, res) => {
     });
   }
 
-  // Code verified! Generate a secret token for the password set step.
   const resetToken = crypto.randomBytes(32).toString('hex');
-  
-  // Invalidate code, store token
   entry.codeHash = null;
   entry.verifiedToken = resetToken;
   passwordResetStore.set(normalizedEmail, entry);
@@ -159,7 +140,6 @@ router.post('/verify', async (req, res) => {
 });
 
 // POST /api/password-reset/set
-// Sets new password. Requires valid resetToken.
 router.post('/set', async (req, res) => {
   const { email, password, resetToken } = req.body || {};
   const normalizedEmail = normalizeEmail(email);
@@ -172,21 +152,18 @@ router.post('/set', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Password too short' });
   }
 
-  // Require at least one digit or special character (same rule as user creation)
-  const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?]/.test(password);
+  const hasDigitOrSymbol = /[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/?]/.test(password);
   if (!hasDigitOrSymbol) {
     return res.status(400).json({ ok: false, error: 'Password must contain at least one digit or special character' });
   }
 
-  // Check in-memory session
   const entry = passwordResetStore.get(normalizedEmail);
-  
+
   if (!entry || isExpired(entry) || entry.verifiedToken !== resetToken) {
     return res.status(403).json({ ok: false, error: 'Invalid or expired reset session' });
   }
 
   try {
-    // 1. Fetch User Id (Double check IsDeleted just in case)
     const [rows] = await pool.query(
       'SELECT Id FROM Users WHERE LOWER(Email) = ? AND IsDeleted+0 = 0 LIMIT 1',
       [normalizedEmail]
@@ -195,16 +172,13 @@ router.post('/set', async (req, res) => {
     if (!rows || rows.length === 0) {
       return res.status(404).json({ ok: false, error: 'User not found or deleted' });
     }
-    
-    const userId = rows[0].Id;
 
-    // 2. Hash and update
+    const userId = rows[0].Id;
     const saltRounds = 10;
     const hash = await bcrypt.hash(password, saltRounds);
-    
+
     await pool.query('UPDATE Users SET PasswordHash = ? WHERE Id = ?', [hash, userId]);
 
-    // 3. Clear session
     passwordResetStore.delete(normalizedEmail);
 
     return res.json({ ok: true });

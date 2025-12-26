@@ -3,11 +3,26 @@ import { useTranslation } from 'react-i18next';
 import '../common/TableStyles.css';
 import './MarginTable.css';
 import CreateMargin from './subsections/CreateMargin';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import ReactDOM from 'react-dom';
+import enGB from 'date-fns/locale/en-GB';
+import 'react-datepicker/dist/react-datepicker.css';
+registerLocale('en-GB', enGB);
+import { useAuth } from '../AuthContext';
 
-// Date formatting
+// Date formatting: normalize any parseable date to YYYY-MM-DD for display
+const pad = (n) => String(n).padStart(2, '0');
 const formatDateDisplay = (dateStr) => {
   if (!dateStr) return '—';
-  return dateStr; 
+  // Already ISO-like
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  // If contains T (full ISO), take date part
+  if (typeof dateStr === 'string' && dateStr.indexOf('T') !== -1) return dateStr.split('T')[0];
+
+  // Try to parse with Date
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr || '—';
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
 // Status determination
@@ -48,6 +63,9 @@ export default function MarginTable() {
   const tableWrapperRef = useRef(null);
 
   const todayDate = new Date().toISOString().split('T')[0];
+
+  const { user } = useAuth();
+  const isAdmin = !!(user && String(user.Role).toLowerCase() === 'admin');
 
   const fetchMargins = async () => {
     setLoading(true);
@@ -127,6 +145,12 @@ export default function MarginTable() {
   const findMarginById = (id) => margins.find(m => String(m.Id) === String(id));
 
   const startEdit = (id) => {
+    // Only admins can open the inline editor
+    if (!isAdmin) {
+      setEditingError(t('marginTable.errorNoPermission') || 'Only admin can edit margins.');
+      return;
+    }
+
     const m = findMarginById(id);
     if (!m) return;
     setEditingError('');
@@ -139,14 +163,15 @@ export default function MarginTable() {
     setTimeout(() => {
       if (tableWrapperRef.current) {
         const el = tableWrapperRef.current.querySelector(`[data-row-id='${id}']`);
-        if (el) activeRowRef.current = el;//
+        if (el) activeRowRef.current = el;
       }
     }, 0);
-  };
+  }; 
 
   const finishEdit = async () => {
     if (!editingId) return;
     setEditingError('');
+    if (!isAdmin) { setEditingError(t('marginTable.errorNoPermission') || 'Only admin can edit margins.'); setEditingId(null); return; }
 
     const normalizedValue = (editValues.marginValue || '').replace(/,/g, '.');
     if (!normalizedValue || !editValues.startDate) {
@@ -227,7 +252,7 @@ export default function MarginTable() {
       
       {error && <div className="error">{error}</div>}
 
-      <div className="table-wrapper table-surface">
+      <div className="table-wrapper table-surface" ref={tableWrapperRef}>
         <table className="curr-table margin-table">
           <thead>
             <tr>
@@ -237,7 +262,7 @@ export default function MarginTable() {
               <th onClick={() => onHeaderClick('endDate')}>{t('marginTable.colEndDate')} {sortBy === 'endDate' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
               <th onClick={() => onHeaderClick('statusKey')}>{t('marginTable.colStatus')} {sortBy === 'statusKey' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
               <th onClick={() => onHeaderClick('owner')}>{t('marginTable.colCreatedBy')} {sortBy === 'owner' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-              <th className="col-edit">&nbsp;</th>
+              {isAdmin && <th className="col-edit">&nbsp;</th>}
             </tr>
           </thead>
           <tbody>
@@ -260,14 +285,32 @@ export default function MarginTable() {
                 </td>
                 <td>
                   {editingId === row.key ? (
-                    <input type="date" max={todayDate} value={editValues.startDate} onChange={(e) => setEditValues(ev => ({ ...ev, startDate: e.target.value }))} disabled={editingLoading} />
+                    <DatePicker
+                      selected={editValues.startDate ? new Date(editValues.startDate) : null}
+                      onChange={(d) => setEditValues(ev => ({ ...ev, startDate: d ? d.toISOString().slice(0,10) : '' }))}
+                      dateFormat="yyyy-MM-dd"
+                      locale="en-GB"
+                      maxDate={todayDate ? new Date(todayDate) : undefined}
+                      className="date-picker-input"
+                      disabled={editingLoading}
+                      popperContainer={({ children }) => ReactDOM.createPortal(children, document.body)}
+                    />
                   ) : (
                     row.startDate
                   )}
                 </td>
                 <td>
                   {editingId === row.key ? (
-                    <input type="date" value={editValues.endDate} onChange={(e) => setEditValues(ev => ({ ...ev, endDate: e.target.value }))} disabled={editingLoading} />
+                    <DatePicker
+                      selected={editValues.endDate ? new Date(editValues.endDate) : null}
+                      onChange={(d) => setEditValues(ev => ({ ...ev, endDate: d ? d.toISOString().slice(0,10) : '' }))}
+                      dateFormat="yyyy-MM-dd"
+                      locale="en-GB"
+                      maxDate={todayDate ? new Date(todayDate) : undefined}
+                      className="date-picker-input"
+                      disabled={editingLoading}
+                      popperContainer={({ children }) => ReactDOM.createPortal(children, document.body)}
+                    />
                   ) : (
                     row.endDate
                   )}
@@ -278,26 +321,30 @@ export default function MarginTable() {
                   </span>
                 </td>
                 <td>{row.owner}</td>
-                <td className="edit-cell">
-                  {editingId === row.key ? (
-                    <div className="edit-actions">
-                      <button className="btn-confirm" onClick={() => finishEdit()} disabled={editingLoading}>{editingLoading ? t('marginTable.saving') : t('marginTable.save')}</button>
-                      <button className="btn-cancel" onClick={() => setEditingId(null)} disabled={editingLoading}>{t('marginTable.cancel')}</button>
-                      {editingError && <div className="error-msg">{editingError}</div>}
-                    </div>
-                  ) : (
-                    <button 
-                    className="icon-btn" 
-                    title={t('marginTable.edit')} 
-                    onClick={() => startEdit(row.key)}
-                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', transform: 'scaleX(-1)', display: 'inline-block', paddingBottom: 0, paddingTop: 0 }}
-                    >✎</button>
-                  )}
-                </td>
+
+                {isAdmin && (
+                  <td className="edit-cell">
+                    {editingId === row.key ? (
+                      <div className="edit-actions">
+                        <button className="btn-confirm" onClick={() => finishEdit()} disabled={editingLoading}>{editingLoading ? t('marginTable.saving') : t('marginTable.save')}</button>
+                        <button className="btn-cancel" onClick={() => setEditingId(null)} disabled={editingLoading}>{t('marginTable.cancel')}</button>
+                        {editingError && <div className="error-msg">{editingError}</div>}
+                      </div>
+                    ) : (
+                      <button 
+                        className="icon-btn" 
+                        title={t('marginTable.edit')} 
+                        onClick={() => startEdit(row.key)}
+                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', transform: 'scaleX(-1)', display: 'inline-block', paddingBottom: 0, paddingTop: 0 }}
+                      >✎</button>
+                    )}
+                  </td>
+                )}
+
               </tr>
             ))}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={6} className="no-data-cell">{t('marginTable.noData')}</td></tr>
+              <tr><td colSpan={isAdmin ? 7 : 6} className="no-data-cell">{t('marginTable.noData')}</td></tr>
             )}
           </tbody>
         </table>
@@ -306,11 +353,11 @@ export default function MarginTable() {
       <div className="pagination">
         <div>{t('marginTable.showing', { from: Math.min((page - 1) * pageSize + 1, total), to: Math.min(page * pageSize, total), total })}</div>
         <div className="pagination-controls">
-          <button onClick={() => setPage(1)} disabled={page === 1}>«</button>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>‹</button>
-          <span>{page} / {totalPages}</span>         
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>›</button>
-          <button onClick={() => setPage(totalPages)} disabled={page === totalPages}>»</button>
+          <button onClick={() => setPage(1)} disabled={page === 1}>« {t('marginTable.first')}</button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>‹ {t('marginTable.prev')}</button>
+          <span>{t('marginTable.page', { page, total: totalPages })}</span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>{t('marginTable.next')} ›</button>
+          <button onClick={() => setPage(totalPages)} disabled={page === totalPages}>{t('marginTable.last')} »</button>
         </div>
       </div>
 

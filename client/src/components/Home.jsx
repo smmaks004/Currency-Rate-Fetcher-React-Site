@@ -3,6 +3,7 @@ import Highcharts from 'highcharts/highstock';
 import HighchartsReact from 'highcharts-react-official';
 
 import 'highcharts/highcharts-more'; 
+import './common/DatePickerDark.css';
 
 import RateConverter from './Converter';
 import './Home.css';

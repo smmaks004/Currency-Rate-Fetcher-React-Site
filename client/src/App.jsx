@@ -23,7 +23,6 @@ function App() {
     <BrowserRouter>
       <div className="app-container">
         <AiChat />
-        
         <Routes>
           <Route path="/auth/login" element={
             <PublicRoute redirectTo="/">
@@ -48,7 +47,7 @@ function App() {
           } />
 
           <Route path="/admin_management" element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={["admin"]}>
               <AdminManagement />
             </PrivateRoute>
           } />

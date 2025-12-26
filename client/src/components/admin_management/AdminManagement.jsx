@@ -9,10 +9,11 @@ import './AdminManagement.css';
 
 export default function AdminManagement() {
 	const { t } = useTranslation();
-	const [activeTab, setActiveTab] = useState('userTable');
-	const { user } = useAuth();
-	const isAdmin = !!(user && ((user.Role).toString().toLowerCase() === 'admin'));
+	const [activeTab, setActiveTab] = useState('userTable'); // Which tab is currently active in admin area
+	const { user } = useAuth(); // Current logged-in user from context
+	const isAdmin = !!(user && ((user.Role).toString().toLowerCase() === 'admin')); // Quick check if current user is admin
 
+	// If not admin, show access-restricted view
 	if (!isAdmin) {
 		return (
 			<div className="home-container">
@@ -34,19 +35,17 @@ export default function AdminManagement() {
 			<Header />
 
 			<main className="main-card wide">
-				<section
-					className="controls"
-					style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0' }}
-				>
-						<div className="headline">{t('header.adminManagement')}</div>
+				<section className="controls" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0' }}>
+					<div className="headline">{t('header.adminManagement')}</div>
 					<div className="tabs-row" style={{ display: 'flex', gap: '8px', marginTop: 0 }}>
-								<button
-									className={`tab-btn ${activeTab === 'userTable' ? 'active' : ''}`}
-									onClick={() => setActiveTab('userTable')}
-									style={{ padding: '6px 8px' }}
-								>
-									{t('admin.userTable')}
-								</button>
+						{/* Tab: users table */}
+						<button
+							className={`tab-btn ${activeTab === 'userTable' ? 'active' : ''}`}
+							onClick={() => setActiveTab('userTable')}
+							style={{ padding: '6px 8px' }}
+						>
+							{t('admin.userTable')}
+						</button>
 					</div>
 				</section>
 

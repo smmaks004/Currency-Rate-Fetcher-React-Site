@@ -7,12 +7,14 @@ import '../currencies_management/CurrencyRatesTable.css';
 
 const pageSize = 20;
 
+// Try to convert a value to a valid Date object, or return null
 const toDate = (value) => {
 	if (!value) return null;
 	const d = new Date(value);
 	return Number.isNaN(d.getTime()) ? null : d;
 };
 
+// Format a date/time nicely for table cells
 const formatDateTime = (value) => {
 	const d = toDate(value);
 	if (!d) return '—';
@@ -32,6 +34,7 @@ const formatRole = (role) => {
 // Convert DB BIT (0/1) to boolean
 const parseIsDeleted = (value) => Boolean(Number(value?.data?.[0] ?? value));
 
+// Build a friendly display name for a user
 const userDisplayName = (user) => {
 	if (!user) return 'this user';
 	const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
@@ -43,6 +46,8 @@ const userDisplayName = (user) => {
 
 export default function UserTable() {
 	const { t } = useTranslation();
+	
+	// Data & UI state
 	const [users, setUsers] = useState([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
@@ -53,6 +58,7 @@ export default function UserTable() {
 	const [actionModal, setActionModal] = useState(null);
 	const [roleModal, setRoleModal] = useState(null);
 
+	// Fetch user list from server with cancellation support
 	const loadUsers = () => {
 		let cancelled = false;
 		const controller = new AbortController();
@@ -68,6 +74,7 @@ export default function UserTable() {
 				const data = await res.json();
 				if (cancelled) return;
 
+				// Normalize server shape to client-friendly fields
 				const normalized = (Array.isArray(data) ? data : []).map((u) => ({
 					id: u.Id,
 					firstName: u.FirstName || '',
@@ -359,13 +366,13 @@ export default function UserTable() {
 			)}
 
 			<div className="pagination">
-				<div className="muted">{t('UserTable.paginationShowing', { from: Math.min((page - 1) * pageSize + 1, total), to: Math.min(page * pageSize, total), total })}</div>
+				<div className="muted">{t('UserTable.showing', { from: Math.min((page - 1) * pageSize + 1, total), to: Math.min(page * pageSize, total), total })}</div>
 				<div className="pagination-controls">
-					<button onClick={() => setPage(1)} disabled={page === 1}>{t('UserTable.paginationFirst')}</button>
-					<button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>{t('UserTable.paginationPrev')}</button>
-					<span>{t('UserTable.paginationPage', { page, total: totalPages })}</span>
-					<button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>{t('UserTable.paginationNext')}</button>
-					<button onClick={() => setPage(totalPages)} disabled={page === totalPages}>{t('UserTable.paginationLast')}</button>
+					<button onClick={() => setPage(1)} disabled={page === 1}>« {t('UserTable.first')}</button>
+					<button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>‹ {t('UserTable.prev')}</button>
+					<span>{t('UserTable.page', { page, total: totalPages })}</span>
+					<button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>{t('UserTable.next')} ›</button>
+					<button onClick={() => setPage(totalPages)} disabled={page === totalPages}>{t('UserTable.last')} »</button>
 				</div>
 			</div>
 		</div>

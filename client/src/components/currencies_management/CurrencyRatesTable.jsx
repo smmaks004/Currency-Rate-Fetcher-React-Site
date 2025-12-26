@@ -5,8 +5,14 @@ import '../common/TableStyles.css';
 import './CurrencyRatesTable.css';
 import { calculatePairRates } from '../../utils/currencyCalculations';
 
+import DatePicker, { registerLocale } from 'react-datepicker';
+import enGB from 'date-fns/locale/en-GB';
+import 'react-datepicker/dist/react-datepicker.css';
+registerLocale('en-GB', enGB);
+
 import ExportTable from './subsections/ExportTable';
 
+// Try to parse server date values robustly (YYYY-MM-DD or ISO strings)
 const parseDate = (d) => {
   if (!d) return null;
   if (d instanceof Date) return d;
@@ -27,7 +33,7 @@ const parseDate = (d) => {
   return dt;
 };
 
-// Format a Date object into local YYYY-MM-DD
+// Format a Date object into local YYYY-MM-DD (used as map keys)
 const formatDateLocal = (d) => {
   if (!d) return '';
   const y = d.getFullYear();
@@ -37,16 +43,21 @@ const formatDateLocal = (d) => {
 };
 
 export default function CurrencyRatesTable() {
+  // Data fetched from server
   const [currencies, setCurrencies] = useState([]);
   const [ratesByCurrency, setRatesByCurrency] = useState({});
+
+  // Loading / error state
   const [loading, setLoading] = useState(false);
   const [currenciesLoading, setCurrenciesLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Inline edit state for ECB rate editing
   const [editingKey, setEditingKey] = useState(null);
   const [editingValue, setEditingValue] = useState('');
   const cancelingRef = useRef(false);
 
-  // table state
+  // Table UI state (filters, pagination, applied selections)
   const [page, setPage] = useState(1);
   const [pendingFrom, setPendingFrom] = useState([]);
   const [showFromDropdown, setShowFromDropdown] = useState(false);
@@ -55,8 +66,13 @@ export default function CurrencyRatesTable() {
   const [showToDropdown, setShowToDropdown] = useState(false);
   const [appliedTo, setAppliedTo] = useState(null);
   const defaultsAppliedRef = useRef(false);
+  // Date filters (pending = inputs, applied = used for fetch)
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [appliedStartDate, setAppliedStartDate] = useState(null);
+  const [appliedEndDate, setAppliedEndDate] = useState(null);
 
-  // Max page size
+  // Pagination and sorting
   const pageSize = 20;
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
@@ -110,7 +126,12 @@ export default function CurrencyRatesTable() {
     (async () => {
       try {
         const ids = currencies.map(c => c.Id).join(',');
-        const url = `/api/rates/bulk?ids=${encodeURIComponent(ids)}`;
+        // include optional date range filters when applied
+        const params = new URLSearchParams();
+        params.append('ids', ids);
+        if (appliedStartDate) params.append('dateFrom', formatDateLocal(appliedStartDate));
+        if (appliedEndDate) params.append('dateTo', formatDateLocal(appliedEndDate));
+        const url = `/api/rates/bulk?${params.toString()}`;
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error('Failed to load rates');
         const payload = await res.json();
@@ -156,9 +177,11 @@ export default function CurrencyRatesTable() {
       cancelled = true;
       controller.abort();
     };
-  }, [currencies, t]);
+  }, [currencies, t, appliedStartDate, appliedEndDate]);
+
 
   const rows = useMemo(() => {
+    // Build table rows by iterating timeline dates and currency pairs
     const rowsAcc = [];
     if (!currencies || currencies.length === 0) return rowsAcc;
 
@@ -260,17 +283,11 @@ export default function CurrencyRatesTable() {
   const isAdmin = !!(user && ((user.Role).toString().toLowerCase() === 'admin'));
 
   const commitEdit = async (row) => {
-    // Only allow editing for admin and if the 'from' currency is EUR
+    // Commit inline ECB edit: only admins can edit and only when from currency is EUR
     if (!isAdmin || (!row || (row.from || '').toUpperCase() !== 'EUR')) {
-      // setError('Only admin users can edit ECB');
       setEditingKey(null);
       return;
     }
-    // if (!row || (row.from || '').toUpperCase() !== 'EUR') {
-    //   // setError('ECB can be edited only when From currency is EUR');
-    //   setEditingKey(null);
-    //   return;
-    // }
 
 
     if (!editingKey) return;
@@ -431,10 +448,38 @@ export default function CurrencyRatesTable() {
           )}
         </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <label style={{ color: '#aaa', fontSize: 12, marginRight: 6 }}>Start Date</label>
+            <DatePicker
+              selected={startDate}
+              onChange={(d) => { if (d) { d.setHours(0,0,0,0); setStartDate(d); } else setStartDate(null); }}
+              dateFormat="yyyy-MM-dd"
+              locale="en-GB"
+              maxDate={new Date()}
+              isClearable
+              className="date-picker-input"
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <label style={{ color: '#aaa', fontSize: 12, marginRight: 6 }}>End Date</label>
+            <DatePicker
+              selected={endDate}
+              onChange={(d) => { if (d) { d.setHours(0,0,0,0); setEndDate(d); } else setEndDate(null); }}
+              dateFormat="yyyy-MM-dd"
+              locale="en-GB"
+              maxDate={new Date()}
+              isClearable
+              className="date-picker-input"
+            />
+          </div>
+
           <button className="tab-btn apply-btn" onClick={() => {
             setAppliedFrom(pendingFrom);
             setAppliedTo(pendingTo);
+            setAppliedStartDate(startDate);
+            setAppliedEndDate(endDate);
             setPage(1);
             setShowFromDropdown(false);
             setShowToDropdown(false);
@@ -472,7 +517,7 @@ export default function CurrencyRatesTable() {
                           <input
                             type="text"
                             value={editingValue}
-                            onChange={(e) => setEditingValue(e.target.value)}
+                            onChange={(e) => setEditingValue(e.target.value.replace(/,/g, '.'))}
                             onBlur={() => {
                               // If user clicked cancel button, avoid committing
                               setTimeout(() => {

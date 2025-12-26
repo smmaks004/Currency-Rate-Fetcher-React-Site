@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import './AiChat.css';
+import { useAuth } from './AuthContext';
 
 // Persistent toggleable AI chat panel (streams responses from backend)
 function AiChat() {
+  const { user, loading } = useAuth();
+  // while auth is loading, don't render the chat to avoid flicker
+  if (loading) return null;
+  // only show the AI chat to authenticated users
+  if (!user) return null;
   const [open, setOpen] = useState(false);
 
   const { t } = useTranslation();

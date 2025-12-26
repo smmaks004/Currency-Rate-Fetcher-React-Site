@@ -7,9 +7,9 @@ export default function PrivateRoute({ children, allowedRoles = [] }) {
   const { user, loading } = useAuth();
   const { t } = useTranslation();
 
-    if (loading) {
-      return <div>{t('routes.loading')}</div>;
-    }
+  if (loading) {
+    return <div>{t('routes.loading')}</div>;
+  }
 
   if (!user) {
     return <Navigate to="/auth/login" replace />;
