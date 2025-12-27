@@ -11,6 +11,7 @@ import Header from './Header';
 import { useAuth } from './AuthContext';
 import { useTranslation } from 'react-i18next';
 import { calculatePairRates } from '../utils/currencyCalculations';
+import { buildSeriesPoints } from '../utils/chartSeries';
 import { useRates } from '../contexts/RatesContext';
 
 // Creates a debounced callback: delays invocation until 'wait' ms after the last call. 
@@ -273,66 +274,20 @@ export default function Home() {
     const isFromEUR = (fromCur?.CurrencyCode || '').toUpperCase() === 'EUR';
     const isToEUR = (toCur?.CurrencyCode || '').toUpperCase() === 'EUR';
 
-    const buyPoints = [];
-    const sellPoints = [];
-    const originPoints = [];
+    // Small pure helper: compute rates object from two entries
+    // Builders — single-responsibility, given prepared aa/bb return point value
+    // ts = timestamp, aa = entry for 'to' currency, bb = entry for 'from' currency
 
-    // ---------------------------------------------------------
-    // Last Observation Carried Forward (LOCF) logic
-    // Maintain the most recent actual recorded values so missing dates can be filled with the last known observation
-    let lastA = null; // last known entry for 'to' currency
-    let lastB = null; // last known entry for 'from' currency
-    // ---------------------------------------------------------
-
-    
-    // Build for every timestamp in full timeline
-    for (const ts of fullTimelineRef.current) {
-      // If ts in requested range, compute, else null
-      if (ts >= rangeStart && ts <= rangeEnd) {
-        const key = keyFromTimestampUTC(ts);
-
-        let a = mapTo.get(key);
-        let b = mapFrom.get(key);
-
-        // Apply LOCF: fall back to last recorded values when current date missing
-        if (!a && lastA) { a = lastA; }
-        if (!b && lastB) { b = lastB; }
-
-        // Update LOCF only when the original map contained a value for this key
-        // This prevents carrying forward synthetic substitutions
-        if (mapTo.has(key)) { lastA = a; }
-        if (mapFrom.has(key)) { lastB = b; }
-
-        // Apply synthetic EUR fallback: if the currency is EUR, treat it as rate=1
-        const aa = a || (isToEUR ? { rate: 1, margin: 0, date: undefined } : undefined);
-        const bb = b || (isFromEUR ? { rate: 1, margin: 0, date: undefined } : undefined);
-
-        // If pair cannot be computed after LOCF and EUR fallback, push null
-        if (!aa || !bb) {
-          buyPoints.push([ts, null]);
-          sellPoints.push([ts, null]);
-          originPoints.push([ts, null]);
-          continue;
-        }
-
-        const baseTo = aa.rate;
-        const baseFrom = bb.rate;
-        const marginTo = aa.margin || 0;
-        const marginFrom = bb.margin || 0;
-
-        // Compute pair Buy and Sell using utility function
-        const rates = calculatePairRates(baseTo, baseFrom, marginTo, marginFrom);
-
-        buyPoints.push([ts, rates.buy]);
-        sellPoints.push([ts, rates.sell]);
-        originPoints.push([ts, rates.origin]);
-      } else {
-        // Outside requested range -> null to keep axis stable
-        buyPoints.push([ts, null]);
-        sellPoints.push([ts, null]);
-        originPoints.push([ts, null]);
-      }
-    }
+    // Delegate pure series construction to utils/chartSeries (preserves LOCF & EUR fallback behavior)
+    const { buyPoints, sellPoints, originPoints } = buildSeriesPoints({
+      mapFrom,
+      mapTo,
+      timeline: fullTimelineRef.current,
+      isFromEUR,
+      isToEUR,
+      rangeStart,
+      rangeEnd,
+    });
 
     // Update chart series via setData to avoid axis changes
     const chart = chartRef.current?.chart;
@@ -354,7 +309,7 @@ export default function Home() {
     } else {
       logDebug('Chart not ready for setData');
     }
-}, [buildFullTimeline, currencies, ensureRates, logDebug]);
+  }, [buildFullTimeline, currencies, ensureRates, logDebug]);
 
 
 
