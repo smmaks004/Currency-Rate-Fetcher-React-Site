@@ -5,23 +5,7 @@ import 'highcharts/highcharts-more';
 import { useTranslation } from 'react-i18next';
 import './MarginChart.css';
 import { parseDate, keyFromTimestampUTC } from '../../../utils/date';
-
-
-// Debounced callback hook
-function useDebounceCallback(fn, wait) {
-  const timeoutRef = useRef(null);
-  const callbackRef = useRef(fn);
-  useEffect(() => { callbackRef.current = fn; }, [fn]);
-  const debounced = useCallback((...args) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      timeoutRef.current = null;
-      callbackRef.current(...args);
-    }, wait);
-  }, [wait]);
-  debounced.cancel = () => { if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; } };
-  return debounced;
-}
+import useDebounceCallback from '../../../utils/debounce'; // Custom debounce hook
 
 export default function MarginChart() {
   const [margins, setMargins] = useState([]); // Raw margin data from API

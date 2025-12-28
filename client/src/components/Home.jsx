@@ -14,23 +14,7 @@ import { calculatePairRates } from '../utils/currencyCalculations';
 import { buildSeriesPoints } from '../utils/chartSeries';
 import { useRates } from '../contexts/RatesContext';
 import { keyFromTimestampUTC } from '../utils/date';
-
-// Creates a debounced callback: delays invocation until 'wait' ms after the last call. 
-// The returned function includes a 'cancel' method to abort a pending invocation.
-function useDebounceCallback(fn, wait) {
-  const timeoutRef = useRef(null);
-  const callbackRef = useRef(fn);
-  useEffect(() => { callbackRef.current = fn; }, [fn]);
-  const debounced = useCallback((...args) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      timeoutRef.current = null;
-      callbackRef.current(...args);
-    }, wait);
-  }, [wait]);
-  debounced.cancel = () => { if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; } };
-  return debounced;
-}
+import useDebounceCallback from '../utils/debounce'; // Custom debounce hook
 
 
 export default function Home() {
