@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { calculatePairRates } from '../utils/currencyCalculations';
 import { buildSeriesPoints } from '../utils/chartSeries';
 import { useRates } from '../contexts/RatesContext';
+import { keyFromTimestampUTC } from '../utils/date';
 
 // Creates a debounced callback: delays invocation until 'wait' ms after the last call. 
 // The returned function includes a 'cancel' method to abort a pending invocation.
@@ -31,13 +32,6 @@ function useDebounceCallback(fn, wait) {
   return debounced;
 }
 
-// Parse an input value into a valid Date object or return null
-const parseDate = (d) => {
-  const dt = new Date(d);
-  if (Number.isNaN(dt.getTime())) return null;
-  
-  return dt;
-};
 
 export default function Home() {
   const [currencies, setCurrencies] = useState([]); 
@@ -168,14 +162,6 @@ export default function Home() {
   }, [ensureRates, logDebug]);
 
   
-  // keyFromTimestampUTC: given a UTC timestamp used in the chart timeline
-  const keyFromTimestampUTC = (ts) => {
-    const d = new Date(ts);
-    const y = d.getUTCFullYear();
-    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
 
     // -----------------------------------------------------------
     // computeLatestRates: scan timeline from new to old and find the most recent for both buy and sell

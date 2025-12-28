@@ -1,16 +1,5 @@
 import { calculatePairRates } from './currencyCalculations';
-
-// Pure helper to build buy/sell/origin series aligned to a provided timeline.
-// Accepts maps returned from RatesContext (`mapFrom`, `mapTo`) where keys are 'YYYY-MM-DD'.
-// All timestamps are UTC epoch ms (as used by chart timeline).
-// Key helper: convert UTC-epoch ts -> YYYY-MM-DD
-const keyFromTimestampUTC = (ts) => {
-  const d = new Date(ts);
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
+import { keyFromTimestampUTC } from './date';
 
 // Individual point builders (exported for clarity/reuse)
 export function buildBuyPoint(ts, aa, bb) {

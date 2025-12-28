@@ -8,13 +8,11 @@ import { calculateSellRate } from '../utils/currencyCalculations';
 registerLocale('en-GB', enGB);
 
 import { useRates } from '../contexts/RatesContext';
+import { dateKeyFromDate } from '../utils/date';
 
 // =======================================================================
 // Helpers
 // =======================================================================
-function pad(n) { return String(n).padStart(2, '0'); }
-function dateKeyFromDate(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
-
 function roundToDecimal(num, decimals) {
     const factor = Math.pow(10, decimals);
     return Math.round(num * factor) / factor;

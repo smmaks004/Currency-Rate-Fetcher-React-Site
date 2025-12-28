@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useRef, useCallback } from 'react';
+import { parseDate } from '../utils/date';
 
 // RatesContext: centralized cache and helpers for currency historical rates
 // Cache stores entries per currencyId: { loaded: bool, map: Map, promise: Promise }
@@ -10,12 +11,7 @@ const RatesContext = createContext(null);
 export function RatesProvider({ children }) {
   const cacheRef = useRef({});
 
-  // Parses date string to Date object, returns null if invalid
-  const parseDate = (d) => {
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return null;
-    return dt;
-  };
+  
 
   // Fetches rates for a currencyId, returns Map
   const fetchRates = useCallback(async (currencyId) => {

@@ -4,13 +4,8 @@ import HighchartsReact from 'highcharts-react-official';
 import 'highcharts/highcharts-more';
 import { useTranslation } from 'react-i18next';
 import './MarginChart.css';
+import { parseDate, keyFromTimestampUTC } from '../../../utils/date';
 
-// Parse an input value into a valid Date object or return null
-const parseDate = (d) => {
-  const dt = new Date(d);
-  if (Number.isNaN(dt.getTime())) return null;
-  return dt;
-};
 
 // Debounced callback hook
 function useDebounceCallback(fn, wait) {
@@ -134,16 +129,6 @@ export default function MarginChart() {
     logDebug(`Built margin timeline from ${fullMinRef.current.toISOString().slice(0,10)} to ${fullMaxRef.current.toISOString().slice(0,10)} length=${timeline.length}`);
   }, [margins, logDebug]);
 
-  // -----------------------------------------------------------
-  // keyFromTimestampUTC: convert UTC timestamp to YYYY-MM-DD key
-  // -----------------------------------------------------------
-  const keyFromTimestampUTC = (ts) => {
-    const d = new Date(ts);
-    const y = d.getUTCFullYear();
-    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
 
   // -----------------------------------------------------------
   // computeLatestMargin: find the most recent active margin

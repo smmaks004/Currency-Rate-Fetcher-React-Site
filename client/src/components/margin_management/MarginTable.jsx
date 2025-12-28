@@ -9,21 +9,9 @@ import enGB from 'date-fns/locale/en-GB';
 import 'react-datepicker/dist/react-datepicker.css';
 registerLocale('en-GB', enGB);
 import { useAuth } from '../AuthContext';
+import { formatDateLocal } from '../../utils/date';
 
-// Date formatting: normalize any parseable date to YYYY-MM-DD for display
-const pad = (n) => String(n).padStart(2, '0');
-const formatDateDisplay = (dateStr) => {
-  if (!dateStr) return '—';
-  // Already ISO-like
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-  // If contains T (full ISO), take date part
-  if (typeof dateStr === 'string' && dateStr.indexOf('T') !== -1) return dateStr.split('T')[0];
 
-  // Try to parse with Date
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return dateStr || '—';
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
 
 // Status determination
 const describeStatusKey = (start, end) => {
@@ -106,8 +94,8 @@ export default function MarginTable() {
         id: m.Id,
         marginDisplay, 
         marginRaw: marginPct,
-        startDate: formatDateDisplay(m.StartDate),
-        endDate: formatDateDisplay(m.EndDate),
+        startDate: formatDateLocal(m.StartDate) || '—',
+        endDate: formatDateLocal(m.EndDate) || '—',
         owner,
         statusKey: describeStatusKey(m.StartDate, m.EndDate)
       };

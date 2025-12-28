@@ -9,38 +9,10 @@ import DatePicker, { registerLocale } from 'react-datepicker';
 import enGB from 'date-fns/locale/en-GB';
 import 'react-datepicker/dist/react-datepicker.css';
 registerLocale('en-GB', enGB);
+import { parseDate, formatDateLocal } from '../../utils/date';
 
 import ExportTable from './subsections/ExportTable';
 
-// Try to parse server date values robustly (YYYY-MM-DD or ISO strings)
-const parseDate = (d) => {
-  if (!d) return null;
-  if (d instanceof Date) return d;
-  
-  const s = String(d);
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); ///
-
-  if (m) {
-    const y = Number(m[1]);
-    const mo = Number(m[2]) - 1;
-    const day = Number(m[3]);
-    return new Date(y, mo, day);
-  }
-  
-  const dt = new Date(s);
-  if (Number.isNaN(dt.getTime())) return null;
-  
-  return dt;
-};
-
-// Format a Date object into local YYYY-MM-DD (used as map keys)
-const formatDateLocal = (d) => {
-  if (!d) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
 
 export default function CurrencyRatesTable() {
   // Data fetched from server
