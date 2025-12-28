@@ -36,6 +36,16 @@ const LV_MONTH_STEMS = {
 const toStringSafe = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
 const isIsoDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
+// Format a DB/Date value to local YYYY-MM-DD without shifting via UTC
+const formatDateToIsoLocal = (val) => {
+  if (val == null) return null;
+  const d = (val instanceof Date) ? val : new Date(val);
+  if (!Number.isFinite(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 const stripCodeFences = (s) => {
   const text = toStringSafe(s).trim();
   if (!text.startsWith('```')) return text;
@@ -375,8 +385,8 @@ const computePairRate = async ({ from, to, date, exact = 0 }) => {
     throw Object.assign(new Error(`No rate found for ${!fromRow ? fromCode : toCode} on/before ${dateIso}`), { statusCode: 404 });
   }
 
-  const effectiveFromDate = fromCode === 'EUR' ? dateIso : new Date(fromRow.date).toISOString().slice(0, 10);
-  const effectiveToDate = toCode === 'EUR' ? dateIso : new Date(toRow.date).toISOString().slice(0, 10);
+  const effectiveFromDate = fromCode === 'EUR' ? dateIso : formatDateToIsoLocal(fromRow.date);
+  const effectiveToDate = toCode === 'EUR' ? dateIso : formatDateToIsoLocal(toRow.date);
   const usedFallback = effectiveFromDate !== dateIso || effectiveToDate !== dateIso;
 
   const marginTo = toRow.marginValue ?? 0;
@@ -428,6 +438,10 @@ const buildFinalAnswerSystemPrompt = (lang) => {
     'Never say you cannot access external information, browsing, databases, or tool results. You are inside the app and must just answer.',
     'Never claim you cannot provide rates because they are "future" or because you lack "real-time market data". If data is missing, say the database has no record for that date/pair.',
     'Always include: requestedDate, effectiveFromDate, effectiveToDate, and the computed rate when TOOL_RESULT is present.',
+    /**/'When TOOL_RESULT contains originRate, buyRate, or sellRate, present them clearly labeled as: "ECB Rate" (originRate), "Buy Rate" (buyRate) and "Sell Rate" (sellRate).', ///
+    /**/'Do NOT show formulas; display only the numeric rates. You may also show the margin value (`marginTo` or `marginFrom`) if relevant.', ///
+    /**/'If TOOL_RESULT shows that requestedDate and effectiveFromDate/effectiveToDate are the same, do NOT repeat them; present a single concise date line (for example: "Date: YYYY-MM-DD") instead of separate "Requested date"/"Effective date" lines.', ///
+    /**/'Do NOT prepend a standalone date header such as "Date: ..." before the main answer. Start directly with the main sentence that states the rate (for example: "The euro to dollar exchange rate on 2025-08-08 was 1.1648.").', ///
     'If TOOL_RESULT contains originRate/buyRate/sellRate, use them when the user asks for buy/sell/margin rates.',
     'If usedFallback is true, say clearly that there was no DB record on the requested date and the closest previous date was used (use the effective dates from TOOL_RESULT).',
     'Do NOT speculate about why the DB is missing data and do NOT claim the dataset ends on some date unless TOOL_RESULT explicitly contains that information.',
