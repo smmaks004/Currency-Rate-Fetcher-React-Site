@@ -7,6 +7,8 @@ const { protect } = require('../middleware/authMiddleware');
 // Simple admin gate reused across admin endpoints
 function ensureAdmin(req, res) {
   const role = req.user && req.user.role;
+
+  // Deny access if not admin
   if (!role || String(role).toLowerCase() !== 'admin') {
     res.status(403).json({ error: 'Forbidden' });
     return false;
@@ -39,8 +41,6 @@ router.post('/create', protect, async (req, res) => {
   if (!ensureAdmin(req, res)) return;
 
   const { firstName, lastName, email, password, role } = req.body || {};
-
-
 
   // Validation
   if (!firstName || !firstName.trim()) {
@@ -75,11 +75,11 @@ router.post('/create', protect, async (req, res) => {
       return res.status(400).json({ error: 'Email already exists' });
     }
 
-    // Hash password
+    // Hash password before storing
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Insert new user
+    // Insert new user record
     const sql = `
       INSERT INTO Users (Email, PasswordHash, FirstName, LastName, Role, CreatedAt, IsDeleted)
       VALUES (?, ?, ?, ?, ?, NOW(), 0)

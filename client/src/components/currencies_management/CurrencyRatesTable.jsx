@@ -13,7 +13,8 @@ import { parseDate, formatDateLocal } from '../../utils/date';
 
 import ExportTable from './subsections/ExportTable';
 
-
+// CurrencyRatesTable: presents historical and latest pair rates between selected currencies
+// Supports filtering, sorting, inline ECB edits (admins) date range selection and export 
 export default function CurrencyRatesTable() {
   // Data fetched from server
   const [currencies, setCurrencies] = useState([]);
@@ -38,6 +39,7 @@ export default function CurrencyRatesTable() {
   const [showToDropdown, setShowToDropdown] = useState(false);
   const [appliedTo, setAppliedTo] = useState(null);
   const defaultsAppliedRef = useRef(false);
+
   // Date filters (pending = inputs, applied = used for fetch)
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);

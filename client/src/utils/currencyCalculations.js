@@ -26,7 +26,7 @@ export function calculatePairRates(baseTo, baseFrom, marginTo, marginFrom) {
   const mFrom = marginFrom || 0;
 
   // Calculate origin rate (without margin)
-  const origin = baseTo / baseFrom;
+  const origin = baseTo / baseFrom; // If baseFrom is from EUR then it will be 1
 
   // If margins are equal (NOW it is the only one case), use optimized formula
   if (mTo === mFrom) {
@@ -77,8 +77,8 @@ export function calculateSellRate(baseTo, baseFrom, marginTo, marginFrom) {
   const mTo = marginTo || 0;
   const mFrom = marginFrom || 0;
 
-  const eurTo_buy = baseTo * (1 - mTo / 2);
-  const eurFrom_sell = baseFrom * (1 + mFrom / 2);
+  const eurTo_buy = baseTo * (1 - mTo / 2); // Adjusted buy rate for target
+  const eurFrom_sell = baseFrom * (1 + mFrom / 2); // Adjusted sell rate for source
   
-  return Number(eurTo_buy / eurFrom_sell);
+  return Number(eurTo_buy / eurFrom_sell); // Calculate sell rate
 }

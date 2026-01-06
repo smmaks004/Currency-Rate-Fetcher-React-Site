@@ -11,15 +11,16 @@ const router = express.Router();
 // ==========================================
 // 1. CONFIGURATION & CONSTANTS
 // ==========================================
-const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL).replace(/\/+$/, '');
-const DEFAULT_MODEL = process.env.OLLAMA_MODEL;
-const TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS);
 
+const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL).replace(/\/+$/, ''); // Base URL for Ollama API
+const DEFAULT_MODEL = process.env.OLLAMA_MODEL; // Default AI model to use
+const TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS); // Timeout for AI requests in milliseconds
+
+// Month mappings for English and Latvian
 const EN_MONTHS = {
   january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
   july: 7, august: 8, september: 9, october: 10, november: 11, december: 12
 };
-
 const LV_MONTH_STEMS = {
   'janvār': 1, 'februār': 2, 'mart': 3, 'aprīl': 4, 'maij': 5, 'jūnij': 6,
   'jūlij': 7, 'august': 8, 'septembr': 9, 'oktobr': 10, 'novembr': 11, 'decembr': 12
@@ -27,16 +28,16 @@ const LV_MONTH_STEMS = {
 
 
 
-
-
-
 // ==========================================
 // 2. HELPER FUNCTIONS (Utils)
 // ==========================================
+// Safely convert a value to a string
 const toStringSafe = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
+
+// Check if a string is in ISO date format (YYYY-MM-DD)
 const isIsoDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
-// Format a DB/Date value to local YYYY-MM-DD without shifting via UTC
+// Format a date value to ISO local format (YYYY-MM-DD)
 const formatDateToIsoLocal = (val) => {
   if (val == null) return null;
   const d = (val instanceof Date) ? val : new Date(val);
@@ -46,12 +47,15 @@ const formatDateToIsoLocal = (val) => {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 };
+
+// Remove code fences (e.g., ```json) from a string
 const stripCodeFences = (s) => {
   const text = toStringSafe(s).trim();
   if (!text.startsWith('```')) return text;
   return text.replace(/^```[a-zA-Z]*\s*/m, '').replace(/\s*```$/m, '').trim();
 };
 
+// Try to parse a JSON object from a string
 const tryParseJsonObject = (s) => {
   const t = stripCodeFences(s);
   if (!t.startsWith('{') || !t.endsWith('}')) return null;
@@ -63,14 +67,16 @@ const tryParseJsonObject = (s) => {
   }
 };
 
+// Normalize a currency code to uppercase (e.g., "usd" -> "USD")
 const normalizeCurrencyCode = (s) => {
   const t = toStringSafe(s).trim().toUpperCase();
   return t.length === 3 ? t : null;
 };
 
+// Escape special characters in a string for use in a regular expression
 const escapeRegExp = (s) => toStringSafe(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// Normalize text for stable matching against CurrencyName
+// Normalize text for matching against currency names
 const normalizeForNameMatch = (s) => {
   return toStringSafe(s)
     .toLowerCase()
@@ -79,7 +85,7 @@ const normalizeForNameMatch = (s) => {
     .replace(/\s+/g, ' ');
 };
 
-// Language Detection
+// Detect the language of a text (Latvian or English)
 const detectLanguage = (text) => {
   const t = toStringSafe(text);
   // Latvian specific chars
@@ -91,20 +97,22 @@ const detectLanguage = (text) => {
   return 'en';
 };
 
+// Return the language name based on the code
 const languageName = (lang) => (lang === 'lv' ? 'Latvian' : 'English');
 
-// Greeting-only fast path (avoids low-quality model output for simple greetings)
+// Check if a text is a simple greeting
 const isGreetingOnly = (text) => {
   const t = toStringSafe(text).trim().toLowerCase();
   return /^((hi|hello|hey)|((labrit|labr\u012bt|labdien|labvakar|sveiki)))[!.?]*$/.test(t);
 };
 
+// Generate a greeting response based on the language
 const greetingResponse = (lang) => {
   if (lang === 'lv') return 'Labrīt! Kā varu palīdzēt?';
   return 'Hi! How can I help?';
 };
 
-// Date Parsing Logic
+// Resolve Latvian month names to numbers
 const resolveLvMonth = (token) => {
   const t = toStringSafe(token).toLowerCase();
   for (const stem of Object.keys(LV_MONTH_STEMS)) {
@@ -113,6 +121,7 @@ const resolveLvMonth = (token) => {
   return null;
 };
 
+// Extract a date from text in various formats
 const tryExtractDate = (text) => {
   const t = toStringSafe(text);
   
@@ -209,12 +218,10 @@ const validateChatRequest = (req) => {
 
 
 
-
-
-
 // ==========================================
 // 3. DATABASE & MATH LOGIC
 // ==========================================
+// Cache for currency catalog with a time-to-live
 const CURRENCY_CATALOG_TTL_MS = Number(process.env.AI_CURRENCY_CATALOG_TTL_MS) || 10 * 60 * 1000;
 let currencyCatalogCache = {
   fetchedAt: 0,
@@ -222,39 +229,41 @@ let currencyCatalogCache = {
   list: []
 };
 
+// Fetch the currency catalog from the database
 const fetchCurrencyCatalog = async () => {
-  const pool = getAiReadOnlyPool();
+  const pool = getAiReadOnlyPool(); // Get a read-only database connection
   const [rows] = await pool.query('SELECT Id, CurrencyCode, CurrencyName FROM Currencies');
 
-  const byCode = new Map();
-  const list = [];
+  const byCode = new Map(); // Map to store currency info by code
+  const list = []; // List to store all currency info
 
   for (const r of rows || []) {
-    const code = normalizeCurrencyCode(r?.CurrencyCode);
-    const id = r?.Id != null ? Number(r.Id) : null;
-    const name = toStringSafe(r?.CurrencyName).trim();
-    if (!code || !Number.isFinite(id) || id <= 0) continue;
+    const code = normalizeCurrencyCode(r?.CurrencyCode); // Normalize currency code (e.g., "usd" -> "USD")
+    const id = r?.Id != null ? Number(r.Id) : null; // Ensure ID is a valid number
+    const name = toStringSafe(r?.CurrencyName).trim(); // Safely convert name to string
+    if (!code || !Number.isFinite(id) || id <= 0) continue; // Skip invalid rows
 
-    const nameNorm = normalizeForNameMatch(name);
+    const nameNorm = normalizeForNameMatch(name); // Normalize name for matching
     const namePattern = nameNorm
-      ? new RegExp(`\\b${nameNorm.split(' ').map(escapeRegExp).join('\\s+')}\\b`, 'i')
+      ? new RegExp(`\\b${nameNorm.split(' ').map(escapeRegExp).join('\\s+')}\\b`, 'i') // Create regex for name matching
       : null;
 
-    const info = { id, code, name: name || null, nameNorm, namePattern };
-    byCode.set(code, info);
-    list.push(info);
+    const info = { id, code, name: name || null, nameNorm, namePattern }; // Store currency info
+    byCode.set(code, info); // Add to map
+    list.push(info); // Add to list
   }
 
-  return { fetchedAt: Date.now(), byCode, list };
+  return { fetchedAt: Date.now(), byCode, list }; // Return catalog with timestamp
 };
 
+// Get the currency catalog, refreshing if stale
 const getCurrencyCatalog = async ({ forceRefresh = false } = {}) => {
-  const now = Date.now();
-  const stale = !currencyCatalogCache.fetchedAt || (now - currencyCatalogCache.fetchedAt) > CURRENCY_CATALOG_TTL_MS;
+  const now = Date.now(); // Current timestamp
+  const stale = !currencyCatalogCache.fetchedAt || (now - currencyCatalogCache.fetchedAt) > CURRENCY_CATALOG_TTL_MS; // Check if cache is stale
   if (forceRefresh || stale || currencyCatalogCache.byCode.size === 0) {
-    currencyCatalogCache = await fetchCurrencyCatalog();
+    currencyCatalogCache = await fetchCurrencyCatalog(); // Refresh cache if needed
   }
-  return currencyCatalogCache;
+  return currencyCatalogCache; // Return cached catalog
 };
 
 const getCurrencyInfoByCode = async (code) => {
@@ -341,20 +350,23 @@ const getEurToCurrencyRateOnDate = async (toCurrencyId, date, { exact = false } 
   return { rate, date: rows[0].Date, marginValue: Number.isFinite(Number(mv)) ? Number(mv) : null };
 };
 
+// Compute the exchange rate between two currencies for a specific date
 const computePairRate = async ({ from, to, date, exact = 0 }) => {
+  // Normalize and validate currency codes
   const fromCode = normalizeCurrencyCode(from);
   const toCode = normalizeCurrencyCode(to);
   if (!fromCode || !toCode) throw Object.assign(new Error('Invalid currency codes'), { statusCode: 400 });
 
-  // Normalize date to ISO so the tool can accept human-friendly inputs too
+  // Normalize and validate the date input
   const dateRaw = toStringSafe(date).trim();
   const dateIso = isIsoDate(dateRaw) ? dateRaw : (tryExtractDate(dateRaw) || null);
   if (!dateIso) throw Object.assign(new Error('Invalid date format. Use YYYY-MM-DD.'), { statusCode: 400 });
 
   const exactFlag = String(exact) === '1' || exact === true;
 
+  // Handle the trivial case where both currencies are the same
   if (fromCode === toCode) {
-    // Avoid forcing DB access for the trivial same-currency case
+    // Avoid database access for same-currency conversion
     const sameInfo = fromCode === 'EUR' ? null : await getCurrencyInfoByCode(fromCode);
     return {
       from: fromCode,
@@ -362,50 +374,63 @@ const computePairRate = async ({ from, to, date, exact = 0 }) => {
       fromName: sameInfo?.name ?? null,
       toName: sameInfo?.name ?? null,
       requestedDate: dateIso,
-      rate: 1,
+      rate: 1, // Same currency always has a rate of 1
       effectiveFromDate: dateIso,
       effectiveToDate: dateIso,
       exact: exactFlag
     };
   }
 
+  // Fetch currency information from the database
   const fromInfo = await getCurrencyInfoByCode(fromCode);
   const toInfo = await getCurrencyInfoByCode(toCode);
 
+  // Retrieve currency IDs for database queries
   const fromId = fromCode === 'EUR' ? null : (fromInfo?.id ?? null);
   const toId = toCode === 'EUR' ? null : (toInfo?.id ?? null);
 
+  // Validate that the currencies exist in the database
   if (fromCode !== 'EUR' && !fromId) throw Object.assign(new Error(`Unknown currency: ${fromCode}`), { statusCode: 404 });
   if (toCode !== 'EUR' && !toId) throw Object.assign(new Error(`Unknown currency: ${toCode}`), { statusCode: 404 });
 
+  // Fetch exchange rates for the specified date
   const fromRow = fromCode === 'EUR' ? { rate: 1, date: dateIso, marginValue: null } : await getEurToCurrencyRateOnDate(fromId, dateIso, { exact: exactFlag });
   const toRow = toCode === 'EUR' ? { rate: 1, date: dateIso, marginValue: null } : await getEurToCurrencyRateOnDate(toId, dateIso, { exact: exactFlag });
 
+  // Ensure rates were found for both currencies
   if (!fromRow || !toRow) {
     throw Object.assign(new Error(`No rate found for ${!fromRow ? fromCode : toCode} on/before ${dateIso}`), { statusCode: 404 });
   }
 
+  // Determine the effective dates for the rates
   const effectiveFromDate = fromCode === 'EUR' ? dateIso : formatDateToIsoLocal(fromRow.date);
   const effectiveToDate = toCode === 'EUR' ? dateIso : formatDateToIsoLocal(toRow.date);
   const usedFallback = effectiveFromDate !== dateIso || effectiveToDate !== dateIso;
 
+  // Calculate margins and final rates
   const marginTo = toRow.marginValue ?? 0;
   const marginFrom = fromRow.marginValue ?? 0;
   const calc = calculatePairRates(toRow.rate, fromRow.rate, marginTo, marginFrom);
 
+  // Return the computed exchange rate details
   return {
-    from: fromCode, to: toCode, requestedDate: dateIso,
-    fromName: fromInfo?.name ?? null,
-    toName: toInfo?.name ?? null,
-    rate: toRow.rate / fromRow.rate,
-    ...calc,
-    marginTo, marginFrom, eurToFrom: fromRow.rate, eurToTo: toRow.rate,
-    effectiveFromDate, effectiveToDate, usedFallback, exact: exactFlag
+    from: fromCode, // The source currency code (e.g., USD)
+    to: toCode, // The target currency code (e.g., EUR)
+    requestedDate: dateIso, // The date for which the exchange rate was requested
+    fromName: fromInfo?.name ?? null, // The full name of the source currency (e.g., "US Dollar")
+    toName: toInfo?.name ?? null, // The full name of the target currency (e.g., "Euro")
+    rate: toRow.rate / fromRow.rate, // The calculated exchange rate between the two currencies
+    ...calc, // Additional calculated rates, including originRate, buyRate, and sellRate
+    marginTo, // The margin applied to the target currency
+    marginFrom, // The margin applied to the source currency
+    eurToFrom: fromRow.rate, // The exchange rate from EUR to the source currency
+    eurToTo: toRow.rate, // The exchange rate from EUR to the target currency
+    effectiveFromDate, // The effective date for the source currency rate used
+    effectiveToDate, // The effective date for the target currency rate used
+    usedFallback, // Indicates whether fallback rates (closest available) were used
+    exact: exactFlag // Indicates whether the rate is strictly for the requested date
   };
 };
-
-
-
 
 
 
@@ -448,9 +473,6 @@ const buildFinalAnswerSystemPrompt = (lang) => {
     'Do NOT output JSON and do NOT ask the user to run requests manually.'
   ].join(' ');
 };
-
-
-
 
 
 
@@ -511,7 +533,7 @@ const writeOneShotStreamResponse = (res, text) => {
 // 6. ROUTES
 // ==========================================
 
-// Tool Endpoint
+// Endpoint to fetch pair rates
 router.get('/tools/pair-rate', protect, async (req, res) => {
   try {
     const from = toStringSafe(req.query?.from);

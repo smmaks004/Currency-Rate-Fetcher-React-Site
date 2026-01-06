@@ -79,6 +79,7 @@ const addDaysToDateStr = (dateStr, days) => {
 };
 
 // POST /api/margins/create
+// Create a new margin entry
 router.post('/create', protect, async (req, res) => {
   const { marginValue, startDate, endDate, forceCreate } = req.body;
   const userId = req.user?.id;
@@ -91,7 +92,7 @@ router.post('/create', protect, async (req, res) => {
     return res.status(400).json({ error: 'Start date is required' });
   }
 
-  const decimalValue = parseFloat(marginValue) / 100;
+  const decimalValue = parseFloat(marginValue) / 100; // Convert percentage to decimal
   const today = getTodayStr();
 
   // Cannot create future margins
@@ -107,7 +108,7 @@ router.post('/create', protect, async (req, res) => {
     await connection.beginTransaction();
 
     // CHECK: Exact StartDate match
-    const [sameDayMargins] = await connection.query(
+    const [sameDayMargins] = await connection.query( // Prevent duplicate start dates
       'SELECT Id FROM Margins WHERE StartDate = ? LIMIT 1',
       [startDate]
     );
@@ -120,6 +121,7 @@ router.post('/create', protect, async (req, res) => {
     }
 
     // Neighbor processing logic
+    // Determine which existing margins need to be adjusted or removed due to the new margin
     const [existingMargins] = await connection.query(`
       SELECT Id, CAST(StartDate AS CHAR) as StartDate, CAST(EndDate AS CHAR) as EndDate 
       FROM Margins 
@@ -129,10 +131,14 @@ router.post('/create', protect, async (req, res) => {
     const newStart = startDate; 
     const newEnd = endDate || null;
 
+    // Margin that starts before newStart and is still active - needs to be closed
     let previousMarginToClose = null; 
+    // First margin that starts after newStart - may need to be shifted or deleted
     let succeedingMarginToModify = null; 
+    // Margins that will be completely overlapped by the new infinite margin
     const marginsToDelete = []; 
 
+    // Loop through all existing margins to identify overlaps
     for (const m of existingMargins) {
       const mStart = m.StartDate;
       const mEnd = m.EndDate || '9999-12-31'; // for comparison
@@ -159,8 +165,9 @@ router.post('/create', protect, async (req, res) => {
     }
     
     // CONFLICT CHECK
+    // Check if conflicts exist and user confirmation is required
     // If there are margins to modify and we are not in forceCreate mode -> ask for confirmation
-    const needsConfirmation = (previousMarginToClose || succeedingMarginToModify) && !forceCreate;
+    const needsConfirmation = (previousMarginToClose || succeedingMarginToModify) && !forceCreate; // Determine if confirmation needed
     
     if (needsConfirmation) {
       await connection.rollback();
@@ -175,6 +182,7 @@ router.post('/create', protect, async (req, res) => {
     }
 
     // APPLYING CHANGES
+    // Execute the necessary modifications to existing margins
     // Close previous margin (cut to yesterday)
     if (previousMarginToClose) {
       const cutOffDate = addDaysToDateStr(newStart, -1);
@@ -245,7 +253,7 @@ router.post('/create', protect, async (req, res) => {
         }
     }
 
-    // Insert new margin
+    // Insert the new margin record
     const insertResult = await connection.query(
       'INSERT INTO Margins (MarginValue, StartDate, EndDate, UserId) VALUES (?, ?, ?, ?)',
       [decimalValue, startDate, newEnd, userId]
@@ -254,6 +262,8 @@ router.post('/create', protect, async (req, res) => {
     // Get the newly created margin ID
     const newMarginId = insertResult[0].insertId;
     
+
+    // Update currency rates to link to the new margin
     // UPDATE MarginId for CurrencyRates that fall within the new margin's date range
     // This ensures all currency rates in this period are linked to the new margin
     if (newEnd) {
@@ -284,20 +294,16 @@ router.post('/create', protect, async (req, res) => {
 
 
 
-
-/***/
-
-
 // PUT /api/margins/update/:id
 // Update an existing margin and shift neighboring margins if needed
-router.put('/update/:id', protect, async (req, res) => {
+router.put('/update/:id', protect, async (req, res) => { // Update margin with conflict resolution
   const marginId = req.params.id;
   const { marginValue, startDate, endDate } = req.body;
   const userId = req.user?.id;
 
   // Only admins may update margins
   const role = req.user && req.user.role;
-  if (!role || String(role).toLowerCase() !== 'admin') {
+  if (!role || String(role).toLowerCase() !== 'admin') { // Admin-only access check
     return res.status(403).json({ error: 'Forbidden: admin only' });
   }
 
@@ -348,6 +354,7 @@ router.put('/update/:id', protect, async (req, res) => {
        FROM Margins WHERE Id != ? AND StartDate < ? ORDER BY StartDate DESC LIMIT 1`,
       [marginId, newStart]
     );
+    // Margin that starts before newStart and is still active - needs to be closed
     let previousMarginToClose = (prevRows && prevRows.length) ? prevRows[0] : null;
 
     // If previous exists but ends strictly before newStart, ignore it
@@ -362,9 +369,12 @@ router.put('/update/:id', protect, async (req, res) => {
        FROM Margins WHERE Id != ? AND StartDate > ? ORDER BY StartDate ASC LIMIT 1`,
       [marginId, newStart]
     );
+    // First margin that starts after newStart - may need to be shifted or deleted
     const succeedingMarginToModify = (nextRows && nextRows.length) ? nextRows[0] : null;
 
+    
     // If new margin is open-ended, collect all margins that start after newStart for deletion
+    // Margins that will be completely overlapped by the updated infinite margin
     const marginsToDelete = [];
     if (!newEnd) {
       const [delRows] = await connection.query(

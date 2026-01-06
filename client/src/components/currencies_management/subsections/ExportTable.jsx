@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
-// Import libraries for generating real PDF
+
+// Libraries used to generate downloadable PDFs and tables
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Download a Blob as a file to the user's machine
+// Download a Blob as a file
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -27,7 +28,7 @@ function escapeCsvCell(v) {
   return s;
 }
 
-// Read currently visible table rows from DOM when propRows not provided
+// Read currently visible table rows from DOM when 'propRows' not provided
 function readVisibleTable() {
   const table = document.querySelector('.curr-table');
   if (!table) return { headers: [], rows: [] };
@@ -44,6 +45,7 @@ function readVisibleTable() {
   return { headers, rows };
 }
 
+// ExportTable: export the shown currency table to CSV/XLSX/PDF
 export default function ExportTable({ rows: propRows, headers: propHeaders, filename: propFilename }) {
   const { t } = useTranslation();
   const [format, setFormat] = useState('csv');

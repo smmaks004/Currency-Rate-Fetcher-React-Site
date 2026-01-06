@@ -43,8 +43,10 @@ function AiChat() {
     }
   }, [aiMessages]);
 
+  // Split streaming text into parts for progressive rendering
   const tokenize = (s) => (typeof s === 'string' ? s.split(/(\s+)/).filter(Boolean) : []);
 
+  // Ensure there's an interval that gradually flushes queued tokens into the assistant message
   const ensureFlushTimer = (assistantId) => {
     if (aiFlushTimerRef.current) return;
     aiFlushTimerRef.current = setInterval(() => {
@@ -154,7 +156,7 @@ function AiChat() {
         aria-expanded={open}
         aria-label={open ? t('aiChat.ariaClose') : t('aiChat.ariaOpen')}
       >
-        <span className="pp-triangle" />
+        <span className="pp-triangle"/> <span className="pp-label" style={{ paddingLeft: '6px', paddingRight: '6px', display: open ? 'none' : 'inline' }}>AI</span>
       </button>
 
       <div className="pp-body" role="region" aria-live="polite">

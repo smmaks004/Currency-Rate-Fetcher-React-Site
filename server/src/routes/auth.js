@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs'); // Password hashing library
+const jwt = require('jsonwebtoken'); // JWT token library
 const { protect } = require('../middleware/authMiddleware');
 
-const JWT_SECRET = process.env.JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET // JWT secret from environment
 
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET is not set.');
@@ -39,21 +39,23 @@ router.post('/login', async (req, res) => {
     }
 
     const hash = user.PasswordHash || '';
-    const isBcryptHash = typeof hash === 'string' && (hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$'));
+    const isBcryptHash = typeof hash === 'string' && (hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$')); // Verify hash format
     if (!isBcryptHash) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Compare password with hash
     const ok = await bcrypt.compare(password, hash);
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
     // Update last login
     try {
-      await pool.query('UPDATE Users SET LastLogin = NOW() WHERE Id = ?', [user.Id]);
+      await pool.query('UPDATE Users SET LastLogin = NOW() WHERE Id = ?', [user.Id]); // Record login time
     } catch (e) {
       console.error('Failed to update last login', e);
     }
 
+    // Generate JWT token
     const token = signToken({ 
       id: user.Id, 
       email: user.Email , 
@@ -62,6 +64,7 @@ router.post('/login', async (req, res) => {
       lastName: user.LastName
     });
     
+     // Cookie settings for security
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -138,7 +141,7 @@ router.post('/change-password', protect, async (req, res) => {
 
   try {
     const saltRounds = 10;
-    const hash = await bcrypt.hash(password, saltRounds);
+    const hash = await bcrypt.hash(password, saltRounds); // Hash new password
     await pool.query('UPDATE Users SET PasswordHash = ? WHERE Id = ?', [hash, userId]);
     return res.json({ ok: true });
   } catch (err) {

@@ -7,12 +7,15 @@ const { sendPasswordResetCodeEmail } = require('../utils/mailtrapMailer');
 
 // -----------------------------
 // Password reset (in-memory storage)
+// Uses an in-memory Map to store one-time codes and short-lived reset sessions
 // -----------------------------
-const RESET_CODE_LENGTH = 6;
-const RESET_CODE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const RESET_CODE_ATTEMPTS = 5;
-const RESET_CODE_SECRET = process.env.RESET_CODE_SECRET;
 
+const RESET_CODE_LENGTH = 6; // Number of characters in reset code
+const RESET_CODE_TTL_MS = 5 * 60 * 1000; // 5 minutes lifetime for codes
+const RESET_CODE_ATTEMPTS = 5; // Allowed verification attempts
+const RESET_CODE_SECRET = process.env.RESET_CODE_SECRET; // Secret for HMAC of codes
+
+// Compute HMAC hash for a reset code to avoid storing the plain code
 function computeCodeHash(code) {
   if (!code) return null;
   return crypto.createHmac('sha256', RESET_CODE_SECRET).update(String(code)).digest('hex');
@@ -20,10 +23,12 @@ function computeCodeHash(code) {
 
 const passwordResetStore = new Map();
 
+// Normalize email for consistent lookups
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+// Generate an uppercase alphanumeric code of given length
 function generateRandomString(length) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
@@ -34,6 +39,7 @@ function generateRandomString(length) {
   return result;
 }
 
+// Check whether a stored reset entry is expired
 function isExpired(entry) {
   return !entry || Date.now() > entry.expiresAt;
 }
@@ -43,6 +49,7 @@ function isExpired(entry) {
 // -----------------------------
 
 // POST /api/password-reset/request
+// Sends a one-time code to the user's email if the account exists
 router.post('/request', async (req, res) => {
   const { email } = req.body || {};
   const normalizedEmail = normalizeEmail(email);
@@ -65,6 +72,7 @@ router.post('/request', async (req, res) => {
         return res.status(403).json({ ok: false, error: 'Account is deleted' });
       }
 
+      // Create and store HMAC-hashed code and attempt counter
       const code = generateRandomString(RESET_CODE_LENGTH);
       const codeHash = computeCodeHash(code);
       const now = Date.now();
@@ -75,6 +83,7 @@ router.post('/request', async (req, res) => {
         attemptsLeft: RESET_CODE_ATTEMPTS,
       });
 
+      // Send plain code via email
       await sendPasswordResetCodeEmail({
         to: email,
         code,
@@ -99,6 +108,7 @@ router.post('/request', async (req, res) => {
 });
 
 // POST /api/password-reset/verify
+// Verify submitted code and issue a short-lived reset token if correct
 router.post('/verify', async (req, res) => {
   const { email, code } = req.body || {};
   const normalizedEmail = normalizeEmail(email);
@@ -111,6 +121,7 @@ router.post('/verify', async (req, res) => {
   const entry = passwordResetStore.get(normalizedEmail);
 
   if (!entry || isExpired(entry)) {
+    // Clean up expired or missing entries
     passwordResetStore.delete(normalizedEmail);
     return res.status(400).json({ ok: false, error: 'Code expired or invalid' });
   }
@@ -122,6 +133,7 @@ router.post('/verify', async (req, res) => {
 
   const providedHash = computeCodeHash(normalizedCode);
   if (entry.codeHash !== providedHash) {
+    // Decrement attempts and persist
     entry.attemptsLeft -= 1;
     passwordResetStore.set(normalizedEmail, entry);
     return res.status(400).json({
@@ -131,6 +143,7 @@ router.post('/verify', async (req, res) => {
     });
   }
 
+  // Issue a server-generated reset token for the subsequent password set step
   const resetToken = crypto.randomBytes(32).toString('hex');
   entry.codeHash = null;
   entry.verifiedToken = resetToken;
@@ -140,6 +153,7 @@ router.post('/verify', async (req, res) => {
 });
 
 // POST /api/password-reset/set
+// Set a new password using the previously issued resetToken
 router.post('/set', async (req, res) => {
   const { email, password, resetToken } = req.body || {};
   const normalizedEmail = normalizeEmail(email);
@@ -148,6 +162,7 @@ router.post('/set', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Missing data' });
   }
 
+  // Enforce minimal password length
   if (password.length < 6) {
     return res.status(400).json({ ok: false, error: 'Password too short' });
   }
@@ -159,6 +174,7 @@ router.post('/set', async (req, res) => {
 
   const entry = passwordResetStore.get(normalizedEmail);
 
+  // Ensure the reset flow was correctly verified previously
   if (!entry || isExpired(entry) || entry.verifiedToken !== resetToken) {
     return res.status(403).json({ ok: false, error: 'Invalid or expired reset session' });
   }
@@ -175,10 +191,11 @@ router.post('/set', async (req, res) => {
 
     const userId = rows[0].Id;
     const saltRounds = 10;
-    const hash = await bcrypt.hash(password, saltRounds);
+    const hash = await bcrypt.hash(password, saltRounds); // Hash and store new password
 
     await pool.query('UPDATE Users SET PasswordHash = ? WHERE Id = ?', [hash, userId]);
 
+    // Remove reset session after successful change
     passwordResetStore.delete(normalizedEmail);
 
     return res.json({ ok: true });

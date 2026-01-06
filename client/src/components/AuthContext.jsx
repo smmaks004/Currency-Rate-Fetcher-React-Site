@@ -67,9 +67,11 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.warn('AuthContext: refreshUser failed', err);
     }
-    return null;
+    
+    return null; // Force-refresh user info from server (used after updates)
   };
 
+  // Logout: call server and clear local user
   const logout = async () => {
     try {
         await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });

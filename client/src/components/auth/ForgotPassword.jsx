@@ -7,6 +7,7 @@ export const defaultRecoveryOptions = [
   { id: 'email' },
 ];
 
+// Password recovery flow component: request code -> verify -> set new password
 export default function ForgotPassword({
   onBack,
   recoveryOptions = defaultRecoveryOptions,

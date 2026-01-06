@@ -6,8 +6,11 @@ import { useRef, useCallback, useEffect } from 'react';
 export default function useDebounceCallback(fn, wait) {
   const timeoutRef = useRef(null);
   const fnRef = useRef(fn);
+  
+  // Keep latest fn reference
   useEffect(() => { fnRef.current = fn; }, [fn]);
 
+  // Debounced wrapper that schedules fn execution
   const debounced = useCallback((...args) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
@@ -16,6 +19,7 @@ export default function useDebounceCallback(fn, wait) {
     }, wait);
   }, [wait]);
 
+  // Expose cancel method to allow callers to abort pending invocation
   debounced.cancel = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -23,6 +27,7 @@ export default function useDebounceCallback(fn, wait) {
     }
   };
 
+  // Cleanup on unmount to avoid calling fn after component is gone
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {

@@ -9,6 +9,7 @@ router.get('/bulk', async (req, res) => {
   const raw = req.query.ids;
   if (!raw) return res.status(400).json({ error: 'ids query param is required' });
 
+  // Parse currency IDs
   const ids = String(raw)
     .split(',')
     .map(s => Number(s.trim()))
@@ -70,6 +71,7 @@ router.get('/auth-check', protect, (req, res) => {
     });
 });
 
+// GET /api/rates/:currencyId
 // Public route: exchange rate data is available without authentication
 router.get('/:currencyId', async (req, res) => {
   // console.log(`Rates request for: ${req.params.currencyId}`);

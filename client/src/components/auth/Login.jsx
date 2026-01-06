@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import './Login.css';
 import { useAuth } from '../AuthContext';
 
-import ForgotPassword from './ForgotPassword'; ////
+import ForgotPassword from './ForgotPassword';
 
 export default function Login() {
   const [email, setEmail] = useState('');

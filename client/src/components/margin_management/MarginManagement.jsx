@@ -4,7 +4,6 @@ import Header from '../Header';
 import { useAuth } from '../AuthContext';
 import MarginTable from './MarginTable';
 import MarginChart from './subsections/MarginChart';
-import './MarginManagement.css';
 
 // Simple scaffold mirroring the CurrencyManagement layout, but for margin workflows.
 export default function MarginManagement() {

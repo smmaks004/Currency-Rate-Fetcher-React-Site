@@ -12,8 +12,8 @@
 
 /* Toggle button (triangle tab) */
 .pp-toggle {
-  width: 40px;
-  height: 40px;
+  width: 45px;
+  height: 45px;
   background: rgba(40, 40, 40, 0.95);
   border-radius: 8px;
   border: none;
@@ -24,9 +24,7 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   cursor: pointer;
 }
-.pp-toggle:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.12);
-}
+.pp-toggle:focus { outline: 2px solid rgba(255, 255, 255, 0.12); }
 
 /* The triangle inside the toggle */
 .pp-triangle {
@@ -39,9 +37,8 @@
   transition: transform 0.18s ease;
 }
 
-.pp-toggle.open .pp-triangle {
-  transform: rotate(180deg);
-}
+.pp-toggle.open .pp-triangle { transform: rotate(180deg); }
+.closed {width: 50px; padding-left: 5px;} 
 
 /* Panel body */
 .pp-body {

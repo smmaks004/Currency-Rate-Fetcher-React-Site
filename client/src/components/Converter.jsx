@@ -112,9 +112,11 @@ export default function ConverterPage() {
 
         const baseTo = rTo.rate.rate; const baseFrom = rFrom.rate.rate;
         const marginTo = rTo.rate.margin || 0; const marginFrom = rFrom.rate.margin || 0;
+        // const margin = rTo.rate.margin || 0;
 
         // Calculate sell rate using utility function now
         const sell = calculateSellRate(baseTo, baseFrom, marginTo, marginFrom);
+        // const sell = calculateSellRate(baseTo, baseFrom, margin);
 
         let usedDate = null;
         if (rTo.usedKey === rFrom.usedKey) usedDate = rTo.usedKey;
@@ -141,17 +143,17 @@ export default function ConverterPage() {
 
             let calculatedValFrom, calculatedValTo;
             
-                    // If the user edits the top field (Sell Amount) -> compute the bottom (Get Amount)
+            // If the user edits the top field (Sell Amount) -> compute the bottom (Get Amount)
             if (activeInput === 'from') {
                 calculatedValFrom = amount;
-                        // Multiply by rate and round DOWN (bank gives less)
-                        calculatedValTo = roundDownToDecimal(amount * sell, 2);
+                // Multiply by rate and round DOWN (bank gives less)
+                calculatedValTo = roundDownToDecimal(amount * sell, 2);
             } 
                 // If the user edits the bottom field (Get Amount) -> compute the top (Sell Amount)
             else {
                 calculatedValTo = amount;
-                        // Divide by rate and round UP (must sell slightly more to cover the amount)
-                        calculatedValFrom = roundUpToDecimal(amount / sell, 2);
+                // Divide by rate and round UP (must sell slightly more to cover the amount)
+                calculatedValFrom = roundUpToDecimal(amount / sell, 2);
             }
 
             setResult({

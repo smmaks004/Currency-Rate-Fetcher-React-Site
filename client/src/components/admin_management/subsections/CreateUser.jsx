@@ -14,7 +14,7 @@ export default function CreateUser({ isOpen, onClose, onSuccess }) {
 
 	const [loading, setLoading] = useState(false); // Loading indicator while request is in progress
 
-	// UI state: any error message from validation or server
+	// UI state: error message from validation or server
 	const [error, setError] = useState('');
 
 	// Reset form inputs and error state to defaults

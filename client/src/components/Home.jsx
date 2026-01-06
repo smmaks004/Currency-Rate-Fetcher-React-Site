@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import Highcharts from 'highcharts/highstock';
-import HighchartsReact from 'highcharts-react-official';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'; 
 
-import 'highcharts/highcharts-more'; 
+import Highcharts from 'highcharts/highstock'; // Highcharts library for stock charts
+import HighchartsReact from 'highcharts-react-official'; // React wrapper for Highcharts
+import 'highcharts/highcharts-more'; // Additional Highcharts modules
 import './common/DatePickerDark.css';
 
 import RateConverter from './Converter';
@@ -17,29 +17,29 @@ import { keyFromTimestampUTC } from '../utils/date';
 import useDebounceCallback from '../utils/debounce'; // Custom debounce hook
 
 
-export default function Home() {
-  const [currencies, setCurrencies] = useState([]); 
-  const [fromId, setFromId] = useState(null); // selected 'from' currency Id
-  const [toId, setToId] = useState(null); // selected 'to' currency Id
-  const [mode, setMode] = useState('mix'); // display mode: 'buy' | 'sell' | 'mix' | 'origin'
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(''); 
-  const [debugLogs, setDebugLogs] = useState([]); 
+export default function Home() { 
+  const [currencies, setCurrencies] = useState([]); // State for available currencies
+  const [fromId, setFromId] = useState(null); // Selected 'from' currency Id
+  const [toId, setToId] = useState(null); // Selected 'to' currency Id
+  const [mode, setMode] = useState('mix'); // Display mode: 'buy' | 'sell' | 'mix' | 'origin'
+  const [loading, setLoading] = useState(false); // Loading state
+  const [error, setError] = useState(''); // Error message state
+  const [debugLogs, setDebugLogs] = useState([]); // Debug logs for development
 
-  const chartRef = useRef(null);
-  const fullTimelineRef = useRef([]);
-  const fullMinRef = useRef(null);
-  const fullMaxRef = useRef(null);
-  const initialPopulatedRef = useRef(false); // prevents forcing the initial range multiple times
+  const chartRef = useRef(null); // Reference to chart component
+  const fullTimelineRef = useRef([]); // Reference to full timeline data
+  const fullMinRef = useRef(null); // Reference to full min value
+  const fullMaxRef = useRef(null); // Reference to full max value
+  const initialPopulatedRef = useRef(false); // Prevents forcing initial range multiple times
 
-  const [chartReady, setChartReady] = useState(false);
-  const [latestRates, setLatestRates] = useState(null);
-  const { user } = useAuth();
-  const { t, i18n } = useTranslation();
-  const { ensureRates } = useRates();
-  const chartInstanceKey = useMemo(() => `chart-${i18n.language}`, [i18n.language]);
+  const [chartReady, setChartReady] = useState(false); // Chart readiness state
+  const [latestRates, setLatestRates] = useState(null); // Latest rates data
+  const { user } = useAuth(); // Current user from auth context
+  const { t, i18n } = useTranslation(); // Translation functions
+  const { ensureRates } = useRates(); // Rates loading function
+  const chartInstanceKey = useMemo(() => `chart-${i18n.language}`, [i18n.language]); // Unique key for chart re-render on language change
   
-  
+  // Debug logging function
   const logDebug = useCallback((msg) => {
     const line = `${new Date().toISOString()} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`;
     setDebugLogs((s) => [...s.slice(-200), line]);
